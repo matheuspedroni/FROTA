@@ -1138,12 +1138,12 @@ window.exportPDF=function(){
     '</tbody></table>':'<p style="color:#888;font-size:12px">Sem dados.</p>'}
   </div>
   <div class="card"><h2 style="margin-top:0">📋 Abastecimentos do mês</h2>
-    ${lista.length?'<table><thead><tr><th>Data</th><th>Tipo</th><th>Equip.</th><th>Litros</th><th>Ref.</th><th>Eficiência</th><th>Colaborador</th></tr></thead><tbody>'+
+    ${lista.length?'<table><thead><tr><th>Data</th><th>Tipo</th><th>Equip.</th><th>Litros</th><th>Ref.</th><th>Eficiência</th><th>Colaborador</th><th>Assinatura</th></tr></thead><tbody>'+
     lista.map(r=>{
       var isE=r.tipo==='e';
       var refStr=r.ref!=null?(isE?r.ref.toFixed(1)+' h':Math.round(r.ref).toLocaleString('pt-BR')+' km'):'—';
       var efStr=r.ef?(isE?r.ef.toFixed(2)+' L/h':r.ef.toFixed(2)+' km/L'):'—';
-      return'<tr><td>'+fmtDt(r.data)+'</td><td>'+tipoLabel(r.tipo)+'</td><td>'+r.equip+'</td><td>'+r.litros+' L</td><td>'+refStr+'</td><td>'+efStr+'</td><td>'+(r.colabNome||'—')+'</td></tr>';
+      return'<tr><td>'+fmtDt(r.data)+'</td><td>'+tipoLabel(r.tipo)+'</td><td>'+r.equip+'</td><td>'+r.litros+' L</td><td>'+refStr+'</td><td>'+efStr+'</td><td>'+(r.colabNome||'—')+'</td><td style="min-width:120px;border-bottom:1px solid #999;vertical-align:bottom;padding-bottom:2px">&nbsp;</td></tr>';
     }).join('')+'</tbody></table>':'<p style="color:#888;font-size:12px">Sem dados.</p>'}
   </div>
   <script>window.onload=function(){window.print()}<\/script>
@@ -1157,11 +1157,6 @@ window.exportPDF=function(){
 // INIT
 var ms=meses();
 document.getElementById('sync-label').textContent=ms[new Date().getMonth()]+' '+new Date().getFullYear();
-</script>
-</body>
-</html>
-var meses=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-document.getElementById('sync-label').textContent=meses[new Date().getMonth()]+' '+new Date().getFullYear();
 </script>
 </body>
 </html>
