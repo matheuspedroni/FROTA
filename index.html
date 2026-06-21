@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Frota">
 <title>Gestão de Frota</title>
 <style>
@@ -90,7 +90,6 @@ th{text-align:left;padding:7px;color:var(--text2);font-weight:500;border-bottom:
 td{padding:8px 7px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 .empty{text-align:center;padding:2rem 1rem;color:var(--text2);font-size:14px}
-.bar-wrap{margin-bottom:6px}
 .bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .bar-label{width:70px;font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
 .bar-bg{flex:1;background:var(--bg2);border-radius:4px;height:13px;overflow:hidden}
@@ -140,6 +139,9 @@ tr:last-child td{border-bottom:none}
 .check-row{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px;background:var(--bg2);border-radius:var(--r)}
 .check-row input[type=checkbox]{width:18px;height:18px;cursor:pointer;flex-shrink:0}
 .check-row label{margin:0;font-size:14px;color:var(--text);cursor:pointer}
+.aplica-wrap{border:1px solid var(--border2);border-radius:var(--r);padding:8px 10px;max-height:110px;overflow-y:auto;background:var(--bg);margin-top:4px;display:flex;flex-wrap:wrap;gap:6px}
+.aplica-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;cursor:pointer;font-size:12px}
+.aplica-chip input{width:14px;height:14px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -270,7 +272,10 @@ tr:last-child td{border-bottom:none}
       </div>
     </div>
     <div class="r2">
-      <div><label>Aplica-se a <span style="font-size:11px;color:var(--text2)">(selecione um ou mais)</span></label><div id="alm-aplica-wrap" style="border:1px solid var(--border2);border-radius:var(--r);padding:8px 10px;max-height:110px;overflow-y:auto;background:var(--bg);margin-top:4px"><div id="alm-aplica-lista"><span style="font-size:13px;color:var(--text3)">Carregando...</span></div></div></div>
+      <div>
+        <label>Aplica-se a <span style="font-size:11px;color:var(--text2)">(selecione)</span></label>
+        <div class="aplica-wrap" id="alm-aplica-lista"><span style="font-size:13px;color:var(--text3)">Carregando...</span></div>
+      </div>
       <div><label>Estoque mínimo</label><input type="number" id="alm-min" placeholder="ex: 2" min="0"></div>
     </div>
     <div class="r2">
@@ -296,7 +301,7 @@ tr:last-child td{border-bottom:none}
 <!-- FROTA -->
 <div id="tab-frota" class="sec">
   <div class="card">
-    <div class="card-title">➕ Adicionar equipamento <span style="font-size:11px;color:var(--text2);font-weight:400">🔒 requer senha</span></div>
+    <div class="card-title">➕ Adicionar equipamento <span style="font-size:11px;color:var(--text2);font-weight:400">🔒 senha</span></div>
     <div class="ttoggle">
       <button class="tbtn active" id="fr-tc" onclick="setFrotaTipo('c')">🚛 Caminhão</button>
       <button class="tbtn emp" id="fr-te" onclick="setFrotaTipo('e')">🏗 Empilhadeira</button>
@@ -319,7 +324,7 @@ tr:last-child td{border-bottom:none}
 <!-- COLABORADORES -->
 <div id="tab-colab" class="sec">
   <div class="card">
-    <div class="card-title">👤 Cadastrar colaborador <span style="font-size:11px;color:var(--text2);font-weight:400">🔒 requer senha</span></div>
+    <div class="card-title">👤 Cadastrar colaborador <span style="font-size:11px;color:var(--text2);font-weight:400">🔒 senha</span></div>
     <div class="r2">
       <div><label>Nome completo</label><input type="text" id="nc-nome" placeholder="ex: João Silva"></div>
       <div><label>Matrícula</label><input type="text" id="nc-mat" placeholder="ex: 00123"></div>
@@ -375,10 +380,8 @@ tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-</div><!-- /content -->
-</div><!-- /app -->
+</div></div>
 <div class="toast" id="toast"></div>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -393,829 +396,732 @@ const firebaseConfig = {
   appId: "1:248388581510:web:5ccbb96ae9b75c8af8f907"
 };
 const SENHA = 'mpedroni';
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+const fbApp = initializeApp(firebaseConfig);
+const db = getDatabase(fbApp);
 
 // STATUS
-function setSS(s){
-  document.getElementById('sync-status').className=s;
-  document.getElementById('sync-label').textContent=s==='online'?'sincronizado':s==='syncing'?'salvando...':'sem conexão';
+function setSS(s) {
+  document.getElementById('sync-status').className = s;
+  document.getElementById('sync-label').textContent = s === 'online' ? 'sincronizado' : s === 'syncing' ? 'salvando...' : 'sem conexão';
 }
-window.addEventListener('online',()=>setSS('online'));
-window.addEventListener('offline',()=>setSS('offline'));
+window.addEventListener('online', () => setSS('online'));
+window.addEventListener('offline', () => setSS('offline'));
 setSS('online');
 
 // STATE
-var abasts={},frota={},colabs={},mnts={},histMnt={},almox={};
-var tipoAbast='c',tipoMnt='c',frotaTipo='c',filtroMnt='c',almFiltro='todos';
+var abasts = {}, frota = {}, colabs = {}, mnts = {}, histMnt = {}, almox = {};
+var tipoAbast = 'c', tipoMnt = 'c', frotaTipo = 'c', filtroMnt = 'c', almFiltro = 'todos';
 
 // UTILS
-function getMes(){var n=new Date();return n.getFullYear()+'-'+(n.getMonth()+1).toString().padStart(2,'0')}
-function getHoje(){return new Date().toISOString().slice(0,10)}
-function fmtDt(iso){var d=new Date(iso);return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
-function fmtData(iso){if(!iso)return'—';return new Date(iso+'T12:00:00').toLocaleDateString('pt-BR')}
-function initials(n){return n.split(' ').filter(Boolean).slice(0,2).map(x=>x[0].toUpperCase()).join('')}
-function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600)}
-function diffDias(d){var dt=new Date(d+'T12:00:00');var h=new Date();h.setHours(0,0,0,0);return Math.round((dt-h)/864e5)}
-function tipoBadge(t){return t==='c'?'bc':t==='e'?'be':'bgui'}
-function tipoLabel(t){return t==='c'?'Caminhão':t==='e'?'Empilhadeira':'Guindaste'}
-function vals(obj){return obj?Object.values(obj):[]}
-function meses(){return['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']}
+function getMes() { var n = new Date(); return n.getFullYear() + '-' + (n.getMonth() + 1).toString().padStart(2, '0'); }
+function getHoje() { return new Date().toISOString().slice(0, 10); }
+function fmtDt(iso) { var d = new Date(iso); return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); }
+function fmtData(iso) { if (!iso) return '—'; return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR'); }
+function initials(n) { return n.split(' ').filter(Boolean).slice(0, 2).map(x => x[0].toUpperCase()).join(''); }
+function toast(msg) { var t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2600); }
+function diffDias(d) { var dt = new Date(d + 'T12:00:00'); var h = new Date(); h.setHours(0, 0, 0, 0); return Math.round((dt - h) / 864e5); }
+function tipoBadge(t) { return t === 'c' ? 'bc' : t === 'e' ? 'be' : 'bgui'; }
+function tipoLabel(t) { return t === 'c' ? 'Caminhão' : t === 'e' ? 'Empilhadeira' : 'Guindaste'; }
+function vals(obj) { return obj ? Object.values(obj) : []; }
+function nomeMes() { return ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][new Date().getMonth()]; }
+function chipEquip(f) {
+  var cor = f.tipo === 'c' ? 'var(--purple-t)' : f.tipo === 'e' ? 'var(--teal-t)' : 'var(--blue-t)';
+  var bg = f.tipo === 'c' ? 'var(--purple-l)' : f.tipo === 'e' ? 'var(--teal-l)' : 'var(--blue-l)';
+  return { cor, bg };
+}
 
 // MODAL SENHA
-function pedirSenha(titulo,cb){
-  var ov=document.createElement('div');ov.className='overlay';
-  ov.innerHTML='<div class="modal"><div class="modal-title">🔒 '+titulo+'</div>'+
-    '<div class="modal-sub">Esta ação requer senha de administrador.</div>'+
-    '<label>Senha</label><input type="password" id="pwd-inp" placeholder="Digite a senha" style="margin-top:4px">'+
-    '<div id="pwd-err" style="font-size:12px;color:var(--red-t);margin-top:6px;display:none">Senha incorreta.</div>'+
-    '<div class="modal-btns">'+
-    '<button onclick="this.closest(\'.overlay\').remove()" style="border:1px solid var(--border2);background:var(--bg);color:var(--text)">Cancelar</button>'+
-    '<button id="pwd-ok" style="background:var(--purple);color:#fff;border:none">Confirmar</button>'+
+function pedirSenha(titulo, cb) {
+  var ov = document.createElement('div'); ov.className = 'overlay';
+  ov.innerHTML = '<div class="modal"><div class="modal-title">🔒 ' + titulo + '</div>' +
+    '<div class="modal-sub">Esta ação requer senha de administrador.</div>' +
+    '<label>Senha</label><input type="password" id="pwd-inp" placeholder="Digite a senha" style="margin-top:4px">' +
+    '<div id="pwd-err" style="font-size:12px;color:var(--red-t);margin-top:6px;display:none">Senha incorreta.</div>' +
+    '<div class="modal-btns">' +
+    '<button id="pwd-cancel" style="border:1px solid var(--border2);background:var(--bg);color:var(--text)">Cancelar</button>' +
+    '<button id="pwd-ok" style="background:var(--purple);color:#fff;border:none">Confirmar</button>' +
     '</div></div>';
   document.body.appendChild(ov);
-  var inp=ov.querySelector('#pwd-inp');inp.focus();
-  inp.addEventListener('keydown',e=>{if(e.key==='Enter')ov.querySelector('#pwd-ok').click()});
-  ov.querySelector('#pwd-ok').onclick=()=>{
-    if(inp.value===SENHA){ov.remove();cb();}
-    else{ov.querySelector('#pwd-err').style.display='block';inp.value='';inp.focus();}
+  var inp = ov.querySelector('#pwd-inp'); inp.focus();
+  ov.querySelector('#pwd-cancel').onclick = () => ov.remove();
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') ov.querySelector('#pwd-ok').click(); });
+  ov.querySelector('#pwd-ok').onclick = () => {
+    if (inp.value === SENHA) { ov.remove(); cb(); }
+    else { ov.querySelector('#pwd-err').style.display = 'block'; inp.value = ''; inp.focus(); }
   };
 }
 
-// NAV
-var TABS=['abast','manut','almox','frota','colab','relat','hist'];
-window.showTab=function(id){
-  TABS.forEach((n,i)=>{
-    document.querySelectorAll('.tab')[i].classList.toggle('active',n===id);
-    document.getElementById('tab-'+n).classList.toggle('active',n===id);
-  });
-  if(id==='relat')renderRelat();
-  if(id==='hist'){renderHistAbast();renderHistMnt();}
+// MODAL GENÉRICO
+function abrirModal(titulo, sub, conteudoHTML, onOk, okLabel) {
+  var ov = document.createElement('div'); ov.className = 'overlay';
+  ov.innerHTML = '<div class="modal"><div class="modal-title">' + titulo + '</div>' +
+    (sub ? '<div class="modal-sub">' + sub + '</div>' : '') +
+    conteudoHTML +
+    '<div class="modal-btns">' +
+    '<button id="m-cancel" style="border:1px solid var(--border2);background:var(--bg);color:var(--text)">Cancelar</button>' +
+    '<button id="m-ok" style="background:var(--purple);color:#fff;border:none">' + (okLabel || '✓ Confirmar') + '</button>' +
+    '</div></div>';
+  document.body.appendChild(ov);
+  ov.querySelector('#m-cancel').onclick = () => ov.remove();
+  ov.querySelector('#m-ok').onclick = () => onOk(ov);
+  return ov;
 }
 
-// LISTENERS
-onValue(ref(db,'frota'),snap=>{frota=snap.val()||{};populaSelects();populaMntEquip();renderFrota();renderAlmoxAplica();});
-onValue(ref(db,'colabs'),snap=>{colabs=snap.val()||{};populaSelects();renderColabs()});
-onValue(ref(db,'abasts'),snap=>{abasts=snap.val()||{};atualizarMetrics();renderAlertasAbast();renderHistAbast()});
-onValue(ref(db,'mnts'),snap=>{mnts=snap.val()||{};renderMnt();renderAlertasMnt();renderAlertasAbast()});
-onValue(ref(db,'histMnt'),snap=>{histMnt=snap.val()||{};renderHistMnt()});
-onValue(ref(db,'almox'),snap=>{almox=snap.val()||{};renderAlmox()});
+// NAV
+var TABS = ['abast', 'manut', 'almox', 'frota', 'colab', 'relat', 'hist'];
+window.showTab = function(id) {
+  TABS.forEach((n, i) => {
+    document.querySelectorAll('.tab')[i].classList.toggle('active', n === id);
+    document.getElementById('tab-' + n).classList.toggle('active', n === id);
+  });
+  if (id === 'relat') renderRelat();
+  if (id === 'hist') { renderHistAbast(); renderHistMnt(); }
+};
+
+// LISTENERS FIREBASE
+onValue(ref(db, 'frota'), snap => { frota = snap.val() || {}; populaSelects(); populaMntEquip(); renderFrota(); renderApplicaLista('alm-aplica-lista', '.alm-cb', []); });
+onValue(ref(db, 'colabs'), snap => { colabs = snap.val() || {}; populaSelects(); renderColabs(); });
+onValue(ref(db, 'abasts'), snap => { abasts = snap.val() || {}; atualizarMetrics(); renderAlertasAbast(); renderHistAbast(); });
+onValue(ref(db, 'mnts'), snap => { mnts = snap.val() || {}; renderMnt(); renderAlertasMnt(); renderAlertasAbast(); });
+onValue(ref(db, 'histMnt'), snap => { histMnt = snap.val() || {}; renderHistMnt(); });
+onValue(ref(db, 'almox'), snap => { almox = snap.val() || {}; renderAlmox(); });
+
+// RENDER LISTA APLICA (reutilizável)
+function renderApplicaLista(containerId, cbClass, selecionados) {
+  var el = document.getElementById(containerId); if (!el) return;
+  var lista = vals(frota).sort((a, b) => a.id.localeCompare(b.id));
+  if (!lista.length) { el.innerHTML = '<span style="font-size:13px;color:var(--text3)">Nenhum equipamento cadastrado.</span>'; return; }
+  el.innerHTML = lista.map(f => {
+    var c = chipEquip(f);
+    var chk = selecionados.includes(f.id) ? ' checked' : '';
+    return '<label class="aplica-chip" style="background:' + c.bg + ';color:' + c.cor + '">' +
+      '<input type="checkbox" class="' + cbClass.replace('.', '') + '" value="' + f.id + '"' + chk + '> ' + f.id + '</label>';
+  }).join('');
+}
 
 // ===== FROTA =====
-window.setFrotaTipo=function(t){
-  frotaTipo=t;
-  ['c','e','g'].forEach(x=>document.getElementById('fr-t'+x).classList.toggle('active',x===t));
-  document.getElementById('fr-ref-lbl').textContent=t==='e'?'Horímetro inicial (h)':'Hodômetro inicial (km)';
-}
-window.addEquip=function(){
-  var id=document.getElementById('fr-id').value.trim();
-  var modelo=document.getElementById('fr-modelo').value.trim();
-  var refv=parseFloat(document.getElementById('fr-ref').value)||0;
-  if(!id||!modelo){toast('Preencha ID e modelo');return}
-  if(frota[id]){toast('ID já existe');return}
-  pedirSenha('Adicionar equipamento',()=>{
+window.setFrotaTipo = function(t) {
+  frotaTipo = t;
+  ['c', 'e', 'g'].forEach(x => document.getElementById('fr-t' + x).classList.toggle('active', x === t));
+  document.getElementById('fr-ref-lbl').textContent = t === 'e' ? 'Horímetro inicial (h)' : 'Hodômetro inicial (km)';
+};
+window.addEquip = function() {
+  var id = document.getElementById('fr-id').value.trim();
+  var modelo = document.getElementById('fr-modelo').value.trim();
+  var refv = parseFloat(document.getElementById('fr-ref').value) || 0;
+  if (!id || !modelo) { toast('Preencha ID e modelo'); return; }
+  if (frota[id]) { toast('ID já existe'); return; }
+  pedirSenha('Adicionar equipamento', () => {
     setSS('syncing');
-    set(ref(db,'frota/'+id),{id,modelo,tipo:frotaTipo,refInicial:refv})
-      .then(()=>{setSS('online');toast(id+' adicionado');
-        document.getElementById('fr-id').value='';
-        document.getElementById('fr-modelo').value='';
-        document.getElementById('fr-ref').value='';
-      }).catch(()=>{setSS('offline');toast('Erro ao salvar')});
+    set(ref(db, 'frota/' + id), { id, modelo, tipo: frotaTipo, refInicial: refv })
+      .then(() => { setSS('online'); toast(id + ' adicionado'); document.getElementById('fr-id').value = ''; document.getElementById('fr-modelo').value = ''; document.getElementById('fr-ref').value = ''; })
+      .catch(() => { setSS('offline'); toast('Erro ao salvar'); });
   });
-}
-window.editEquip=function(id){
-  var f=frota[id];if(!f)return;
-  pedirSenha('Editar '+id,()=>{
-    var ov=document.createElement('div');ov.className='overlay';
-    ov.innerHTML='<div class="modal">'+
-      '<div class="modal-title">✏️ Editar equipamento</div>'+
-      '<div class="modal-sub">'+id+'</div>'+
-      '<label>Modelo</label><input type="text" id="ed-modelo" value="'+f.modelo+'" style="margin-top:4px">'+
-      '<label>'+( f.tipo==='e'?'Horímetro inicial (h)':'Hodômetro inicial (km)')+'</label>'+
-      '<input type="number" id="ed-ref" value="'+(f.refInicial||0)+'" style="margin-top:4px">'+
-      '<div class="modal-btns">'+
-      '<button onclick="this.closest(\'.overlay\').remove()" style="border:1px solid var(--border2);background:var(--bg);color:var(--text)">Cancelar</button>'+
-      '<button id="ed-ok" style="background:var(--purple);color:#fff;border:none">💾 Salvar</button>'+
-      '</div></div>';
-    document.body.appendChild(ov);
-    ov.querySelector('#ed-modelo').focus();
-    ov.querySelector('#ed-ok').onclick=()=>{
-      var modelo=ov.querySelector('#ed-modelo').value.trim();
-      var refv=parseFloat(ov.querySelector('#ed-ref').value)||0;
-      if(!modelo){toast('Informe o modelo');return}
-      ov.remove();setSS('syncing');
-      update(ref(db,'frota/'+id),{modelo,refInicial:refv})
-        .then(()=>{setSS('online');toast(id+' atualizado')})
-        .catch(()=>{setSS('offline');toast('Erro ao salvar')});
-    };
+};
+window.editEquip = function(id) {
+  var f = frota[id]; if (!f) return;
+  pedirSenha('Editar ' + id, () => {
+    var html = '<label>Modelo</label><input type="text" id="ed-modelo" value="' + f.modelo + '" style="margin-top:4px">' +
+      '<label>' + (f.tipo === 'e' ? 'Horímetro inicial (h)' : 'Hodômetro inicial (km)') + '</label>' +
+      '<input type="number" id="ed-ref" value="' + (f.refInicial || 0) + '" style="margin-top:4px">';
+    abrirModal('✏️ Editar ' + id, null, html, ov => {
+      var modelo = ov.querySelector('#ed-modelo').value.trim();
+      var refv = parseFloat(ov.querySelector('#ed-ref').value) || 0;
+      if (!modelo) { toast('Informe o modelo'); return; }
+      ov.remove(); setSS('syncing');
+      update(ref(db, 'frota/' + id), { modelo, refInicial: refv })
+        .then(() => { setSS('online'); toast(id + ' atualizado'); })
+        .catch(() => { setSS('offline'); toast('Erro'); });
+    }, '💾 Salvar');
   });
-}
-window.removeEquip=function(id){
-  pedirSenha('Remover '+id,()=>{
-    setSS('syncing');
-    remove(ref(db,'frota/'+id))
-      .then(()=>{setSS('online');toast(id+' removido')})
-      .catch(()=>{setSS('offline');toast('Erro')});
+};
+window.removeEquip = function(id) {
+  pedirSenha('Remover ' + id, () => {
+    remove(ref(db, 'frota/' + id)).then(() => { setSS('online'); toast(id + ' removido'); }).catch(() => { setSS('offline'); toast('Erro'); });
   });
-}
-function ultimoRef(id){
-  var r=vals(abasts).filter(x=>x.equip===id&&x.ref!=null).sort((a,b)=>b.data.localeCompare(a.data));
-  if(!r.length)return frota[id]?frota[id].refInicial:0;
+};
+function ultimoRef(id) {
+  var r = vals(abasts).filter(x => x.equip === id && x.ref != null).sort((a, b) => b.data.localeCompare(a.data));
+  if (!r.length) return frota[id] ? frota[id].refInicial : 0;
   return r[0].ref;
 }
-function renderFrota(){
-  ['c','e','g'].forEach(t=>{
-    var el=document.getElementById('tab-fr-'+t);
-    var list=vals(frota).filter(f=>f.tipo===t);
-    if(!list.length){el.innerHTML='<div class="empty">Nenhum equipamento.</div>';return}
-    el.innerHTML='<table><thead><tr><th>ID</th><th>Modelo</th><th>Ref. atual</th><th>Abast.</th><th></th></tr></thead><tbody>'+
-    list.map(f=>{
-      var ult=ultimoRef(f.id);
-      var qtd=vals(abasts).filter(r=>r.equip===f.id).length;
-      var refStr=f.tipo==='e'?ult.toFixed(1)+' h':Math.round(ult).toLocaleString('pt-BR')+' km';
-      return '<tr><td><span class="badge '+tipoBadge(f.tipo)+'">'+f.id+'</span></td><td>'+f.modelo+'</td><td>'+refStr+'</td><td>'+qtd+'</td>'+
-        '<td style="white-space:nowrap"><button class="btn btn-sm btn-edit" onclick="editEquip(\''+f.id+'\')" style="margin-right:4px">✏️</button>'+
-        '<button class="btn btn-sm btn-danger" onclick="removeEquip(\''+f.id+'\')">🗑</button></td></tr>';
-    }).join('')+'</tbody></table>';
+function renderFrota() {
+  ['c', 'e', 'g'].forEach(t => {
+    var el = document.getElementById('tab-fr-' + t);
+    var list = vals(frota).filter(f => f.tipo === t);
+    if (!list.length) { el.innerHTML = '<div class="empty">Nenhum equipamento.</div>'; return; }
+    el.innerHTML = '<table><thead><tr><th>ID</th><th>Modelo</th><th>Ref. atual</th><th>Abast.</th><th></th></tr></thead><tbody>' +
+      list.map(f => {
+        var ult = ultimoRef(f.id);
+        var qtd = vals(abasts).filter(r => r.equip === f.id).length;
+        var refStr = f.tipo === 'e' ? ult.toFixed(1) + ' h' : Math.round(ult).toLocaleString('pt-BR') + ' km';
+        return '<tr><td><span class="badge ' + tipoBadge(f.tipo) + '">' + f.id + '</span></td><td>' + f.modelo + '</td><td>' + refStr + '</td><td>' + qtd + '</td>' +
+          '<td style="white-space:nowrap"><button class="btn btn-sm btn-edit" onclick="editEquip(\'' + f.id + '\')" style="margin-right:4px">✏️</button>' +
+          '<button class="btn btn-sm btn-danger" onclick="removeEquip(\'' + f.id + '\')">🗑</button></td></tr>';
+      }).join('') + '</tbody></table>';
   });
 }
 
-// ===== COLABS =====
-window.addColab=function(){
-  var nome=document.getElementById('nc-nome').value.trim();
-  var mat=document.getElementById('nc-mat').value.trim();
-  var podeAbastecer=document.getElementById('nc-abast').checked;
-  if(!nome){toast('Informe o nome');return}
-  pedirSenha('Cadastrar colaborador',()=>{
-    setSS('syncing');
-    push(ref(db,'colabs'),{nome,matricula:mat,ativo:true,podeAbastecer})
-      .then(()=>{setSS('online');toast(nome+' cadastrado');
-        document.getElementById('nc-nome').value='';
-        document.getElementById('nc-mat').value='';
-        document.getElementById('nc-abast').checked=true;
-      }).catch(()=>{setSS('offline');toast('Erro')});
+// ===== COLABORADORES =====
+window.addColab = function() {
+  var nome = document.getElementById('nc-nome').value.trim();
+  var mat = document.getElementById('nc-mat').value.trim();
+  var podeAbastecer = document.getElementById('nc-abast').checked;
+  if (!nome) { toast('Informe o nome'); return; }
+  pedirSenha('Cadastrar colaborador', () => {
+    push(ref(db, 'colabs'), { nome, matricula: mat, ativo: true, podeAbastecer })
+      .then(() => { setSS('online'); toast(nome + ' cadastrado'); document.getElementById('nc-nome').value = ''; document.getElementById('nc-mat').value = ''; document.getElementById('nc-abast').checked = true; })
+      .catch(() => { setSS('offline'); toast('Erro'); });
   });
-}
-window.toggleColab=function(key){
-  var c=colabs[key];if(!c)return;
-  pedirSenha((c.ativo?'Desativar':'Ativar')+' '+c.nome,()=>{
-    update(ref(db,'colabs/'+key),{ativo:!c.ativo})
-      .then(()=>toast(c.nome+': '+(c.ativo?'desativado':'ativado')));
+};
+window.toggleColab = function(key) {
+  var c = colabs[key]; if (!c) return;
+  pedirSenha((c.ativo ? 'Desativar' : 'Ativar') + ' ' + c.nome, () => {
+    update(ref(db, 'colabs/' + key), { ativo: !c.ativo }).then(() => toast(c.nome + ': ' + (c.ativo ? 'desativado' : 'ativado')));
   });
-}
-window.toggleAbast=function(key){
-  var c=colabs[key];if(!c)return;
-  pedirSenha((c.podeAbastecer?'Remover':'Conceder')+' permissão',()=>{
-    update(ref(db,'colabs/'+key),{podeAbastecer:!c.podeAbastecer})
-      .then(()=>toast(c.nome+': permissão '+(c.podeAbastecer?'removida':'concedida')));
+};
+window.toggleAbast = function(key) {
+  var c = colabs[key]; if (!c) return;
+  pedirSenha((c.podeAbastecer ? 'Remover' : 'Conceder') + ' permissão', () => {
+    update(ref(db, 'colabs/' + key), { podeAbastecer: !c.podeAbastecer }).then(() => toast(c.nome + ': permissão ' + (c.podeAbastecer ? 'removida' : 'concedida')));
   });
-}
-window.removeColab=function(key){
-  if(vals(abasts).some(r=>r.colabKey===key)){toast('Tem registros — desative em vez de remover');return}
-  pedirSenha('Remover colaborador',()=>{
-    remove(ref(db,'colabs/'+key)).then(()=>toast('Removido'));
-  });
-}
-function renderColabs(){
-  var el=document.getElementById('lista-colab');
-  if(!Object.keys(colabs).length){el.innerHTML='<div class="empty">Nenhum colaborador.</div>';return}
-  el.innerHTML=Object.entries(colabs).map(([key,c])=>{
-    var usado=vals(abasts).some(r=>r.colabKey===key);
-    return '<div class="colab-row"><div class="avatar">'+initials(c.nome)+'</div>'+
-      '<div class="cinfo"><div class="cnome">'+c.nome+'</div><div class="cmat">'+
-      (c.matricula?'Mat. '+c.matricula:'Sem matrícula')+
-      ' · <span style="color:'+(c.podeAbastecer?'var(--green-t)':'var(--red-t)')+'">'+
-      (c.podeAbastecer?'✓ Pode abastecer':'✗ Sem permissão')+'</span></div></div>'+
-      '<div class="cactions"><span class="badge '+(c.ativo?'bativo':'binativo')+'">'+(c.ativo?'Ativo':'Inativo')+'</span>'+
-      '<button class="btn btn-sm '+(c.podeAbastecer?'btn-warn':'btn-p')+'" onclick="toggleAbast(\''+key+'\')" title="Permissão abastecimento">⛽</button>'+
-      '<button class="btn btn-sm '+(c.ativo?'btn-warn':'btn-p')+'" onclick="toggleColab(\''+key+'\')">'+(c.ativo?'Desativar':'Ativar')+'</button>'+
-      (!usado?'<button class="btn btn-sm btn-danger" onclick="removeColab(\''+key+'\')">🗑</button>':'')+
+};
+window.removeColab = function(key) {
+  if (vals(abasts).some(r => r.colabKey === key)) { toast('Tem registros — desative em vez de remover'); return; }
+  pedirSenha('Remover colaborador', () => { remove(ref(db, 'colabs/' + key)).then(() => toast('Removido')); });
+};
+function renderColabs() {
+  var el = document.getElementById('lista-colab');
+  if (!Object.keys(colabs).length) { el.innerHTML = '<div class="empty">Nenhum colaborador.</div>'; return; }
+  el.innerHTML = Object.entries(colabs).map(([key, c]) => {
+    var usado = vals(abasts).some(r => r.colabKey === key);
+    return '<div class="colab-row"><div class="avatar">' + initials(c.nome) + '</div>' +
+      '<div class="cinfo"><div class="cnome">' + c.nome + '</div><div class="cmat">' +
+      (c.matricula ? 'Mat. ' + c.matricula : 'Sem matrícula') +
+      ' · <span style="color:' + (c.podeAbastecer ? 'var(--green-t)' : 'var(--red-t)') + '">' +
+      (c.podeAbastecer ? '✓ Pode abastecer' : '✗ Sem permissão') + '</span></div></div>' +
+      '<div class="cactions"><span class="badge ' + (c.ativo ? 'bativo' : 'binativo') + '">' + (c.ativo ? 'Ativo' : 'Inativo') + '</span>' +
+      '<button class="btn btn-sm ' + (c.podeAbastecer ? 'btn-warn' : 'btn-p') + '" onclick="toggleAbast(\'' + key + '\')" title="Permissão abastecimento">⛽</button>' +
+      '<button class="btn btn-sm ' + (c.ativo ? 'btn-warn' : 'btn-p') + '" onclick="toggleColab(\'' + key + '\')">' + (c.ativo ? 'Desativar' : 'Ativar') + '</button>' +
+      (!usado ? '<button class="btn btn-sm btn-danger" onclick="removeColab(\'' + key + '\')">🗑</button>' : '') +
       '</div></div>';
   }).join('');
 }
 
 // SELECTS
-function populaSelects(){
-  var sc=document.getElementById('sel-colab');
-  var ativos=Object.entries(colabs).filter(([k,c])=>c.ativo&&c.podeAbastecer);
-  sc.innerHTML='<option value="">Selecione...</option>'+ativos.map(([k,c])=>
-    '<option value="'+k+'">'+c.nome+(c.matricula?' — '+c.matricula:'')+'</option>').join('');
+function populaSelects() {
+  var sc = document.getElementById('sel-colab');
+  var ativos = Object.entries(colabs).filter(([k, c]) => c.ativo && c.podeAbastecer);
+  sc.innerHTML = '<option value="">Selecione...</option>' + ativos.map(([k, c]) => '<option value="' + k + '">' + c.nome + (c.matricula ? ' — ' + c.matricula : '') + '</option>').join('');
   populaEquipAbast();
 }
-function populaEquipAbast(){
-  var se=document.getElementById('sel-equip');
-  var f=vals(frota).filter(x=>x.tipo===tipoAbast);
-  se.innerHTML='<option value="">Selecione...</option>'+f.map(c=>
-    '<option value="'+c.id+'">'+c.id+' — '+c.modelo+'</option>').join('');
+function populaEquipAbast() {
+  var se = document.getElementById('sel-equip');
+  var f = vals(frota).filter(x => x.tipo === tipoAbast);
+  se.innerHTML = '<option value="">Selecione...</option>' + f.map(c => '<option value="' + c.id + '">' + c.id + ' — ' + c.modelo + '</option>').join('');
 }
-function populaMntEquip(){
-  var se=document.getElementById('mnt-equip');
-  var f=vals(frota).filter(x=>x.tipo===tipoMnt);
-  se.innerHTML='<option value="">Geral (todos)</option>'+f.map(c=>
-    '<option value="'+c.id+'">'+c.id+' — '+c.modelo+'</option>').join('');
+function populaMntEquip() {
+  var se = document.getElementById('mnt-equip');
+  var f = vals(frota).filter(x => x.tipo === tipoMnt);
+  se.innerHTML = '<option value="">Geral (todos)</option>' + f.map(c => '<option value="' + c.id + '">' + c.id + ' — ' + c.modelo + '</option>').join('');
 }
 
 // ===== ABASTECIMENTO =====
-window.setTipoAbast=function(t){
-  tipoAbast=t;
-  document.getElementById('btn-tc').classList.toggle('active',t==='c');
-  document.getElementById('btn-te').classList.toggle('active',t==='e');
-  document.getElementById('f-cam').style.display=t==='c'?'block':'none';
-  document.getElementById('f-emp').style.display=t==='e'?'block':'none';
+window.setTipoAbast = function(t) {
+  tipoAbast = t;
+  document.getElementById('btn-tc').classList.toggle('active', t === 'c');
+  document.getElementById('btn-te').classList.toggle('active', t === 'e');
+  document.getElementById('f-cam').style.display = t === 'c' ? 'block' : 'none';
+  document.getElementById('f-emp').style.display = t === 'e' ? 'block' : 'none';
   populaEquipAbast();
-  ['inp-km','inp-delta','inp-lc','inp-media','inp-hr2','inp-hrd','inp-le','inp-lh'].forEach(x=>document.getElementById(x).value='');
+  ['inp-km', 'inp-delta', 'inp-lc', 'inp-media', 'inp-hr2', 'inp-hrd', 'inp-le', 'inp-lh'].forEach(x => document.getElementById(x).value = '');
+};
+window.onEquipChange = function() {
+  ['inp-km', 'inp-delta', 'inp-lc', 'inp-media', 'inp-hr2', 'inp-hrd', 'inp-le', 'inp-lh'].forEach(x => document.getElementById(x).value = '');
+};
+window.calcDelta = function() {
+  var id = document.getElementById('sel-equip').value; if (!id) return;
+  var km = parseFloat(document.getElementById('inp-km').value); if (!km) return;
+  var d = Math.round(km - ultimoRef(id));
+  document.getElementById('inp-delta').value = d > 0 ? d : ''; calcMedia();
+};
+window.calcMedia = function() {
+  var d = parseFloat(document.getElementById('inp-delta').value);
+  var l = parseFloat(document.getElementById('inp-lc').value);
+  document.getElementById('inp-media').value = (d > 0 && l > 0) ? (d / l).toFixed(2) : '';
+};
+window.calcHrDelta = function() {
+  var id = document.getElementById('sel-equip').value; if (!id) return;
+  var hr = parseFloat(document.getElementById('inp-hr2').value); if (!hr) return;
+  var d = (hr - ultimoRef(id)).toFixed(1);
+  document.getElementById('inp-hrd').value = parseFloat(d) > 0 ? d : ''; calcLh();
+};
+window.calcLh = function() {
+  var d = parseFloat(document.getElementById('inp-hrd').value);
+  var l = parseFloat(document.getElementById('inp-le').value);
+  document.getElementById('inp-lh').value = (d > 0 && l > 0) ? (l / d).toFixed(2) : '';
+};
+function atualizarMetrics() {
+  var hoje = getHoje(), mes = getMes(), lista = vals(abasts);
+  var hL = lista.filter(r => r.data.startsWith(hoje)).reduce((a, r) => a + r.litros, 0);
+  var mL = lista.filter(r => r.data.startsWith(mes)).reduce((a, r) => a + r.litros, 0);
+  var mKm = lista.filter(r => r.data.startsWith(mes) && r.tipo === 'c' && r.delta > 0).reduce((a, r) => a + r.delta, 0);
+  var mHr = lista.filter(r => r.data.startsWith(mes) && r.tipo === 'e' && r.delta > 0).reduce((a, r) => a + r.delta, 0);
+  document.getElementById('m-hoje').innerHTML = hL.toLocaleString('pt-BR') + ' <span class="met-u">L</span>';
+  document.getElementById('m-mes').innerHTML = mL.toLocaleString('pt-BR') + ' <span class="met-u">L</span>';
+  document.getElementById('m-km').innerHTML = Math.round(mKm).toLocaleString('pt-BR') + ' <span class="met-u">km</span>';
+  document.getElementById('m-hr').innerHTML = parseFloat(mHr).toFixed(1) + ' <span class="met-u">h</span>';
 }
-window.onEquipChange=function(){
-  ['inp-km','inp-delta','inp-lc','inp-media','inp-hr2','inp-hrd','inp-le','inp-lh'].forEach(x=>document.getElementById(x).value='');
-}
-window.calcDelta=function(){
-  var id=document.getElementById('sel-equip').value;if(!id)return;
-  var km=parseFloat(document.getElementById('inp-km').value);if(!km)return;
-  var d=Math.round(km-ultimoRef(id));
-  document.getElementById('inp-delta').value=d>0?d:'';calcMedia();
-}
-window.calcMedia=function(){
-  var d=parseFloat(document.getElementById('inp-delta').value);
-  var l=parseFloat(document.getElementById('inp-lc').value);
-  document.getElementById('inp-media').value=(d>0&&l>0)?(d/l).toFixed(2):'';
-}
-window.calcHrDelta=function(){
-  var id=document.getElementById('sel-equip').value;if(!id)return;
-  var hr=parseFloat(document.getElementById('inp-hr2').value);if(!hr)return;
-  var d=(hr-ultimoRef(id)).toFixed(1);
-  document.getElementById('inp-hrd').value=parseFloat(d)>0?d:'';calcLh();
-}
-window.calcLh=function(){
-  var d=parseFloat(document.getElementById('inp-hrd').value);
-  var l=parseFloat(document.getElementById('inp-le').value);
-  document.getElementById('inp-lh').value=(d>0&&l>0)?(l/d).toFixed(2):'';
-}
-function atualizarMetrics(){
-  var hoje=getHoje(),mes=getMes(),lista=vals(abasts);
-  var hL=lista.filter(r=>r.data.startsWith(hoje)).reduce((a,r)=>a+r.litros,0);
-  var mL=lista.filter(r=>r.data.startsWith(mes)).reduce((a,r)=>a+r.litros,0);
-  var mKm=lista.filter(r=>r.data.startsWith(mes)&&r.tipo==='c'&&r.delta>0).reduce((a,r)=>a+r.delta,0);
-  var mHr=lista.filter(r=>r.data.startsWith(mes)&&r.tipo==='e'&&r.delta>0).reduce((a,r)=>a+r.delta,0);
-  document.getElementById('m-hoje').innerHTML=hL.toLocaleString('pt-BR')+' <span class="met-u">L</span>';
-  document.getElementById('m-mes').innerHTML=mL.toLocaleString('pt-BR')+' <span class="met-u">L</span>';
-  document.getElementById('m-km').innerHTML=Math.round(mKm).toLocaleString('pt-BR')+' <span class="met-u">km</span>';
-  document.getElementById('m-hr').innerHTML=parseFloat(mHr).toFixed(1)+' <span class="met-u">h</span>';
-}
-window.registrarAbast=function(){
-  var colabKey=document.getElementById('sel-colab').value;
-  if(!colabKey){toast('Selecione o colaborador');return}
-  var colab=colabs[colabKey];
-  if(!colab||!colab.ativo||!colab.podeAbastecer){toast('Colaborador não autorizado');return}
-  var id=document.getElementById('sel-equip').value;
-  if(!id){toast('Selecione o equipamento');return}
-  var isE=tipoAbast==='e';
-  var litId=isE?'inp-le':'inp-lc';
-  var lit=parseFloat(document.getElementById(litId).value);
-  if(!lit||lit<=0){toast('Informe os litros');return}
-  var refv=parseFloat(document.getElementById(isE?'inp-hr2':'inp-km').value)||null;
-  var delta=parseFloat(document.getElementById(isE?'inp-hrd':'inp-delta').value)||0;
-  var ef=parseFloat(document.getElementById(isE?'inp-lh':'inp-media').value)||null;
-  var obs=document.getElementById('inp-obs').value.trim();
-  if(refv&&refv<ultimoRef(id)){toast((isE?'Horímetro':'Hodômetro')+' menor que anterior!');return}
+window.registrarAbast = function() {
+  var colabKey = document.getElementById('sel-colab').value;
+  if (!colabKey) { toast('Selecione o colaborador'); return; }
+  var colab = colabs[colabKey];
+  if (!colab || !colab.ativo || !colab.podeAbastecer) { toast('Colaborador não autorizado'); return; }
+  var id = document.getElementById('sel-equip').value;
+  if (!id) { toast('Selecione o equipamento'); return; }
+  var isE = tipoAbast === 'e';
+  var litId = isE ? 'inp-le' : 'inp-lc';
+  var lit = parseFloat(document.getElementById(litId).value);
+  if (!lit || lit <= 0) { toast('Informe os litros'); return; }
+  var refv = parseFloat(document.getElementById(isE ? 'inp-hr2' : 'inp-km').value) || null;
+  var delta = parseFloat(document.getElementById(isE ? 'inp-hrd' : 'inp-delta').value) || 0;
+  var ef = parseFloat(document.getElementById(isE ? 'inp-lh' : 'inp-media').value) || null;
+  var obs = document.getElementById('inp-obs').value.trim();
+  if (refv && refv < ultimoRef(id)) { toast((isE ? 'Horímetro' : 'Hodômetro') + ' menor que anterior!'); return; }
   setSS('syncing');
-  push(ref(db,'abasts'),{equip:id,tipo:tipoAbast,litros:lit,ref:refv,delta,ef,colabKey,colabNome:colab.nome,colabMat:colab.matricula,obs,data:new Date().toISOString()})
-    .then(()=>{setSS('online');toast('Registrado: '+lit+' L / '+id)})
-    .catch(()=>{setSS('offline');toast('Erro ao salvar')});
-  document.getElementById('sel-equip').value='';document.getElementById('sel-colab').value='';
-  [litId,isE?'inp-hr2':'inp-km',isE?'inp-hrd':'inp-delta',isE?'inp-lh':'inp-media','inp-obs'].forEach(x=>document.getElementById(x).value='');
-}
-window.editAbast=function(key){
-  var a=abasts[key];if(!a)return;
-  pedirSenha('Editar abastecimento',()=>{
-    var isE=a.tipo==='e';
-    var ov=document.createElement('div');ov.className='overlay';
-    ov.innerHTML='<div class="modal"><div class="modal-title">✏️ Editar abastecimento</div>'+
-      '<div class="modal-sub">'+a.equip+' — '+fmtDt(a.data)+'</div>'+
-      '<label>Litros</label><input type="number" id="ea-lit" value="'+a.litros+'" style="margin-top:4px">'+
-      '<label>'+(isE?'Horímetro (h)':'Hodômetro (km)')+'</label><input type="number" id="ea-ref" value="'+(a.ref||'')+'" style="margin-top:4px">'+
-      '<label>Observação</label><input type="text" id="ea-obs" value="'+(a.obs||'')+'" style="margin-top:4px">'+
-      '<div class="modal-btns">'+
-      '<button onclick="this.closest(\'.overlay\').remove()" style="border:1px solid var(--border2);background:var(--bg);color:var(--text)">Cancelar</button>'+
-      '<button id="ea-ok" style="background:var(--purple);color:#fff;border:none">💾 Salvar</button>'+
-      '</div></div>';
-    document.body.appendChild(ov);
-    ov.querySelector('#ea-ok').onclick=()=>{
-      var lit=parseFloat(ov.querySelector('#ea-lit').value);
-      var refv=parseFloat(ov.querySelector('#ea-ref').value)||null;
-      var obs=ov.querySelector('#ea-obs').value.trim();
-      if(!lit||lit<=0){toast('Informe os litros');return}
-      ov.remove();setSS('syncing');
-      update(ref(db,'abasts/'+key),{litros:lit,ref:refv,obs})
-        .then(()=>{setSS('online');toast('Abastecimento atualizado')})
-        .catch(()=>{setSS('offline');toast('Erro')});
-    };
+  push(ref(db, 'abasts'), { equip: id, tipo: tipoAbast, litros: lit, ref: refv, delta, ef, colabKey, colabNome: colab.nome, colabMat: colab.matricula, obs, data: new Date().toISOString() })
+    .then(() => { setSS('online'); toast('Registrado: ' + lit + ' L / ' + id); })
+    .catch(() => { setSS('offline'); toast('Erro ao salvar'); });
+  document.getElementById('sel-equip').value = ''; document.getElementById('sel-colab').value = '';
+  [litId, isE ? 'inp-hr2' : 'inp-km', isE ? 'inp-hrd' : 'inp-delta', isE ? 'inp-lh' : 'inp-media', 'inp-obs'].forEach(x => document.getElementById(x).value = '');
+};
+window.editAbast = function(key) {
+  var a = abasts[key]; if (!a) return;
+  pedirSenha('Editar abastecimento', () => {
+    var isE = a.tipo === 'e';
+    var html = '<label>Litros</label><input type="number" id="ea-lit" value="' + a.litros + '" style="margin-top:4px">' +
+      '<label>' + (isE ? 'Horímetro (h)' : 'Hodômetro (km)') + '</label><input type="number" id="ea-ref" value="' + (a.ref || '') + '" style="margin-top:4px">' +
+      '<label>Observação</label><input type="text" id="ea-obs" value="' + (a.obs || '') + '" style="margin-top:4px">';
+    abrirModal('✏️ Editar abastecimento', a.equip + ' — ' + fmtDt(a.data), html, ov => {
+      var lit = parseFloat(ov.querySelector('#ea-lit').value);
+      if (!lit || lit <= 0) { toast('Informe os litros'); return; }
+      var refv = parseFloat(ov.querySelector('#ea-ref').value) || null;
+      var obs = ov.querySelector('#ea-obs').value.trim();
+      ov.remove(); setSS('syncing');
+      update(ref(db, 'abasts/' + key), { litros: lit, ref: refv, obs })
+        .then(() => { setSS('online'); toast('Abastecimento atualizado'); })
+        .catch(() => { setSS('offline'); toast('Erro'); });
+    }, '💾 Salvar');
   });
-}
-window.deleteAbast=function(key){
-  pedirSenha('Excluir abastecimento',()=>{
-    remove(ref(db,'abasts/'+key)).then(()=>toast('Abastecimento excluído'));
+};
+window.deleteAbast = function(key) {
+  pedirSenha('Excluir abastecimento', () => {
+    remove(ref(db, 'abasts/' + key)).then(() => toast('Abastecimento excluído'));
   });
-}
-function renderAlertasAbast(){
-  var el=document.getElementById('alertas-abast');
-  var venc=vals(mnts).filter(m=>m.proxData&&diffDias(m.proxData)<=3);
-  if(!venc.length){el.innerHTML='';return}
-  el.innerHTML=venc.map(m=>{
-    var d=diffDias(m.proxData);
-    return '<div class="alert-bar '+(d>=0?'warn':'')+'">⚠ '+m.equip+' — '+m.desc+' | '+(d<0?'Vencida há '+Math.abs(d)+'d':'Vence em '+d+'d')+'</div>';
+};
+function renderAlertasAbast() {
+  var el = document.getElementById('alertas-abast');
+  var venc = vals(mnts).filter(m => m.proxData && diffDias(m.proxData) <= 3);
+  if (!venc.length) { el.innerHTML = ''; return; }
+  el.innerHTML = venc.map(m => {
+    var d = diffDias(m.proxData);
+    return '<div class="alert-bar ' + (d >= 0 ? 'warn' : '') + '">⚠ ' + m.equip + ' — ' + m.desc + ' | ' + (d < 0 ? 'Vencida há ' + Math.abs(d) + 'd' : 'Vence em ' + d + 'd') + '</div>';
   }).join('');
 }
 
 // ===== MANUTENÇÃO =====
-window.setTipoMnt=function(t){
-  tipoMnt=t;
-  ['c','e','g'].forEach(x=>document.getElementById('mnt-t'+x).classList.toggle('active',x===t));
+window.setTipoMnt = function(t) {
+  tipoMnt = t;
+  ['c', 'e', 'g'].forEach(x => document.getElementById('mnt-t' + x).classList.toggle('active', x === t));
   populaMntEquip();
-}
-window.setFiltroMnt=function(t){
-  filtroMnt=t;
-  ['c','e','g'].forEach(x=>document.getElementById('fil-t'+x).classList.toggle('active',x===t));
+};
+window.setFiltroMnt = function(t) {
+  filtroMnt = t;
+  ['c', 'e', 'g'].forEach(x => document.getElementById('fil-t' + x).classList.toggle('active', x === t));
   renderMnt();
-}
-window.toggleRefWrap=function(){
-  var per=document.getElementById('mnt-per').value;
-  var show=per==='por km'||per==='por horas';
-  document.getElementById('mnt-ref-wrap').style.display=show?'block':'none';
-  document.getElementById('mnt-ref-lbl').textContent=per==='por km'?'Intervalo (km)':'Intervalo (h)';
-}
-window.addMntItem=function(){
-  var equip=document.getElementById('mnt-equip').value||'Geral';
-  var sistema=document.getElementById('mnt-sistema').value.trim()||'Geral';
-  var desc=document.getElementById('mnt-desc').value.trim();
-  var per=document.getElementById('mnt-per').value;
-  var refVal=parseFloat(document.getElementById('mnt-ref-val').value)||null;
-  var prox=document.getElementById('mnt-prox').value||null;
-  if(!desc){toast('Informe a descrição');return}
+};
+window.toggleRefWrap = function() {
+  var per = document.getElementById('mnt-per').value;
+  var show = per === 'por km' || per === 'por horas';
+  document.getElementById('mnt-ref-wrap').style.display = show ? 'block' : 'none';
+  document.getElementById('mnt-ref-lbl').textContent = per === 'por km' ? 'Intervalo (km)' : 'Intervalo (h)';
+};
+window.addMntItem = function() {
+  var equip = document.getElementById('mnt-equip').value || 'Geral';
+  var sistema = document.getElementById('mnt-sistema').value.trim() || 'Geral';
+  var desc = document.getElementById('mnt-desc').value.trim();
+  var per = document.getElementById('mnt-per').value;
+  var refVal = parseFloat(document.getElementById('mnt-ref-val').value) || null;
+  var prox = document.getElementById('mnt-prox').value || null;
+  if (!desc) { toast('Informe a descrição'); return; }
   setSS('syncing');
-  push(ref(db,'mnts'),{tipo:tipoMnt,equip,sistema,desc,per,refVal,proxData:prox,ultimaData:null,ultimaResp:null})
-    .then(()=>{setSS('online');toast('Item adicionado')})
-    .catch(()=>{setSS('offline');toast('Erro')});
-  document.getElementById('mnt-sistema').value='';document.getElementById('mnt-desc').value='';
-  document.getElementById('mnt-prox').value='';document.getElementById('mnt-ref-val').value='';
-}
-window.editMntItem=function(key){
-  var m=mnts[key];if(!m)return;
-  var ov=document.createElement('div');ov.className='overlay';
-  ov.innerHTML='<div class="modal"><div class="modal-title">✏️ Editar item de manutenção</div>'+
-    '<label>Sistema</label><input type="text" id="em-sis" value="'+m.sistema+'" style="margin-top:4px">'+
-    '<label>Descrição</label><input type="text" id="em-desc" value="'+m.desc+'" style="margin-top:4px">'+
-    '<label>Periodicidade</label>'+
-    '<select id="em-per" style="margin-top:4px">'+
-    ['Diária','Semanal','Mensal','Semestral','Anual','por km','por horas'].map(p=>
-      '<option value="'+p+'"'+(m.per===p?' selected':'')+'>'+p+'</option>').join('')+
-    '</select>'+
-    '<label>Próxima execução</label><input type="date" id="em-prox" value="'+(m.proxData||'')+'" style="margin-top:4px">'+
-    '<div class="modal-btns">'+
-    '<button onclick="this.closest(\'.overlay\').remove()" style="border:1px solid var(--border2);background:var(--bg);color:var(--text)">Cancelar</button>'+
-    '<button id="em-ok" style="background:var(--purple);color:#fff;border:none">💾 Salvar</button>'+
-    '</div></div>';
-  document.body.appendChild(ov);
-  ov.querySelector('#em-ok').onclick=()=>{
-    var sistema=ov.querySelector('#em-sis').value.trim();
-    var desc=ov.querySelector('#em-desc').value.trim();
-    var per=ov.querySelector('#em-per').value;
-    var prox=ov.querySelector('#em-prox').value||null;
-    if(!desc){toast('Informe a descrição');return}
-    ov.remove();setSS('syncing');
-    update(ref(db,'mnts/'+key),{sistema,desc,per,proxData:prox})
-      .then(()=>{setSS('online');toast('Item atualizado')})
-      .catch(()=>{setSS('offline');toast('Erro')});
-  };
-}
-window.editMntProx=function(key){
-  var m=mnts[key];if(!m)return;
-  var nd=prompt('Nova data (AAAA-MM-DD):',m.proxData||'');
-  if(nd===null)return;
-  update(ref(db,'mnts/'+key),{proxData:nd||null}).then(()=>toast('Data atualizada'));
-}
-window.registrarMnt=function(key){
-  var m=mnts[key];if(!m)return;
-  var ativos=Object.entries(colabs).filter(([k,c])=>c.ativo);
-  var opts=ativos.length?ativos.map(([k,c])=>'<option value="'+k+'">'+c.nome+(c.matricula?' — '+c.matricula:'')+'</option>').join(''):'<option value="">Nenhum colaborador</option>';
-  var ov=document.createElement('div');ov.className='overlay';
-  ov.innerHTML='<div class="modal"><div class="modal-title">Registrar manutenção</div>'+
-    '<div class="modal-sub">'+m.sistema+' — '+m.desc+'</div>'+
-    '<label>Responsável</label><select id="mnt-resp-sel" style="margin-top:4px"><option value="">Selecione...</option>'+opts+'</select>'+
-    '<label style="margin-top:10px">Observação (opcional)</label>'+
-    '<input type="text" id="mnt-resp-obs" placeholder="ex: peça substituída..." style="margin-top:4px">'+
-    '<div class="modal-btns">'+
-    '<button onclick="this.closest(\'.overlay\').remove()" style="border:1px solid var(--border2);background:var(--bg);color:var(--text)">Cancelar</button>'+
-    '<button id="mnt-ok" style="background:var(--purple);color:#fff;border:none">✓ Confirmar</button>'+
-    '</div></div>';
-  document.body.appendChild(ov);
-  ov.querySelector('#mnt-ok').onclick=function(){
-    var colabKey=ov.querySelector('#mnt-resp-sel').value||null;
-    var colab=colabKey?colabs[colabKey]:null;
-    var obs=ov.querySelector('#mnt-resp-obs').value.trim();
-    ov.remove();
-    var hoje=getHoje();var proxData=m.proxData;
-    if(proxData){
-      var d=new Date(proxData+'T12:00:00');
-      var dias={Diária:1,Semanal:7,Mensal:30,Semestral:180,Anual:365}[m.per];
-      if(dias){d.setDate(d.getDate()+dias);proxData=d.toISOString().slice(0,10)}
+  push(ref(db, 'mnts'), { tipo: tipoMnt, equip, sistema, desc, per, refVal, proxData: prox, ultimaData: null, ultimaResp: null })
+    .then(() => { setSS('online'); toast('Item adicionado'); })
+    .catch(() => { setSS('offline'); toast('Erro'); });
+  document.getElementById('mnt-sistema').value = ''; document.getElementById('mnt-desc').value = '';
+  document.getElementById('mnt-prox').value = ''; document.getElementById('mnt-ref-val').value = '';
+};
+window.editMntItem = function(key) {
+  var m = mnts[key]; if (!m) return;
+  var perOpts = ['Diária', 'Semanal', 'Mensal', 'Semestral', 'Anual', 'por km', 'por horas']
+    .map(p => '<option value="' + p + '"' + (m.per === p ? ' selected' : '') + '>' + p + '</option>').join('');
+  var html = '<label>Sistema</label><input type="text" id="em-sis" value="' + m.sistema + '" style="margin-top:4px">' +
+    '<label>Descrição</label><input type="text" id="em-desc" value="' + m.desc + '" style="margin-top:4px">' +
+    '<label>Periodicidade</label><select id="em-per" style="margin-top:4px">' + perOpts + '</select>' +
+    '<label>Próxima execução</label><input type="date" id="em-prox" value="' + (m.proxData || '') + '" style="margin-top:4px">';
+  abrirModal('✏️ Editar manutenção', null, html, ov => {
+    var sistema = ov.querySelector('#em-sis').value.trim();
+    var desc = ov.querySelector('#em-desc').value.trim();
+    var per = ov.querySelector('#em-per').value;
+    var prox = ov.querySelector('#em-prox').value || null;
+    if (!desc) { toast('Informe a descrição'); return; }
+    ov.remove(); setSS('syncing');
+    update(ref(db, 'mnts/' + key), { sistema, desc, per, proxData: prox })
+      .then(() => { setSS('online'); toast('Item atualizado'); })
+      .catch(() => { setSS('offline'); toast('Erro'); });
+  }, '💾 Salvar');
+};
+window.editMntProx = function(key) {
+  var m = mnts[key]; if (!m) return;
+  var nd = prompt('Nova data (AAAA-MM-DD):', m.proxData || '');
+  if (nd === null) return;
+  update(ref(db, 'mnts/' + key), { proxData: nd || null }).then(() => toast('Data atualizada'));
+};
+window.registrarMnt = function(key) {
+  var m = mnts[key]; if (!m) return;
+  var ativos = Object.entries(colabs).filter(([k, c]) => c.ativo);
+  var opts = '<option value="">Selecione...</option>' + ativos.map(([k, c]) => '<option value="' + k + '">' + c.nome + (c.matricula ? ' — ' + c.matricula : '') + '</option>').join('');
+  var html = '<label>Responsável</label><select id="mnt-resp-sel" style="margin-top:4px">' + opts + '</select>' +
+    '<label style="margin-top:10px">Observação (opcional)</label>' +
+    '<input type="text" id="mnt-resp-obs" placeholder="ex: peça substituída..." style="margin-top:4px">';
+  var ov = abrirModal('Registrar manutenção', m.sistema + ' — ' + m.desc, html, ov2 => {
+    var colabKey = ov2.querySelector('#mnt-resp-sel').value || null;
+    var colab = colabKey ? colabs[colabKey] : null;
+    var obs = ov2.querySelector('#mnt-resp-obs').value.trim();
+    ov2.remove();
+    var hoje = getHoje(); var proxData = m.proxData;
+    if (proxData) {
+      var d = new Date(proxData + 'T12:00:00');
+      var dias = { Diária: 1, Semanal: 7, Mensal: 30, Semestral: 180, Anual: 365 }[m.per];
+      if (dias) { d.setDate(d.getDate() + dias); proxData = d.toISOString().slice(0, 10); }
     }
     setSS('syncing');
     Promise.all([
-      update(ref(db,'mnts/'+key),{ultimaData:hoje,ultimaResp:colab?colab.nome:null,proxData}),
-      push(ref(db,'histMnt'),{mntKey:key,equip:m.equip,desc:m.desc,sistema:m.sistema,tipo:m.tipo,colabKey,colabNome:colab?colab.nome:null,colabMat:colab?colab.matricula:null,obs,data:new Date().toISOString()})
-    ]).then(()=>{setSS('online');toast('Manutenção registrada!')})
-      .catch(()=>{setSS('offline');toast('Erro')});
-  };
-}
-window.removeMntItem=function(key){
-  if(!confirm('Remover item?'))return;
-  remove(ref(db,'mnts/'+key)).then(()=>toast('Removido'));
-}
-window.editHistMnt=function(key){
-  var r=histMnt[key];if(!r)return;
-  pedirSenha('Editar registro de manutenção',()=>{
-    var ov=document.createElement('div');ov.className='overlay';
-    ov.innerHTML='<div class="modal"><div class="modal-title">✏️ Editar manutenção realizada</div>'+
-      '<div class="modal-sub">'+r.equip+' — '+r.desc+'</div>'+
-      '<label>Observação</label><input type="text" id="ehm-obs" value="'+(r.obs||'')+'" style="margin-top:4px">'+
-      '<div class="modal-btns">'+
-      '<button onclick="this.closest(\'.overlay\').remove()" style="border:1px solid var(--border2);background:var(--bg);color:var(--text)">Cancelar</button>'+
-      '<button id="ehm-ok" style="background:var(--purple);color:#fff;border:none">💾 Salvar</button>'+
-      '</div></div>';
-    document.body.appendChild(ov);
-    ov.querySelector('#ehm-ok').onclick=()=>{
-      var obs=ov.querySelector('#ehm-obs').value.trim();
+      update(ref(db, 'mnts/' + key), { ultimaData: hoje, ultimaResp: colab ? colab.nome : null, proxData }),
+      push(ref(db, 'histMnt'), { mntKey: key, equip: m.equip, desc: m.desc, sistema: m.sistema, tipo: m.tipo, colabKey, colabNome: colab ? colab.nome : null, colabMat: colab ? colab.matricula : null, obs, data: new Date().toISOString() })
+    ]).then(() => { setSS('online'); toast('Manutenção registrada!'); }).catch(() => { setSS('offline'); toast('Erro'); });
+  });
+};
+window.removeMntItem = function(key) {
+  if (!confirm('Remover item?')) return;
+  remove(ref(db, 'mnts/' + key)).then(() => toast('Removido'));
+};
+window.editHistMnt = function(key) {
+  var r = histMnt[key]; if (!r) return;
+  pedirSenha('Editar registro', () => {
+    var html = '<label>Observação</label><input type="text" id="ehm-obs" value="' + (r.obs || '') + '" style="margin-top:4px">';
+    abrirModal('✏️ Editar manutenção realizada', r.equip + ' — ' + r.desc, html, ov => {
+      var obs = ov.querySelector('#ehm-obs').value.trim();
       ov.remove();
-      update(ref(db,'histMnt/'+key),{obs}).then(()=>toast('Atualizado'));
-    };
+      update(ref(db, 'histMnt/' + key), { obs }).then(() => toast('Atualizado'));
+    }, '💾 Salvar');
   });
-}
-window.deleteHistMnt=function(key){
-  pedirSenha('Excluir registro de manutenção',()=>{
-    remove(ref(db,'histMnt/'+key)).then(()=>toast('Registro excluído'));
+};
+window.deleteHistMnt = function(key) {
+  pedirSenha('Excluir registro de manutenção', () => {
+    remove(ref(db, 'histMnt/' + key)).then(() => toast('Registro excluído'));
   });
+};
+function statusMnt(m) {
+  if (!m.proxData) return { cls: 'chip', txt: 'Sem data' };
+  var d = diffDias(m.proxData);
+  if (d < 0) return { cls: 'badge bvenc', txt: 'Vencida ' + Math.abs(d) + 'd' };
+  if (d <= 7) return { cls: 'badge bwarn', txt: 'Em ' + d + 'd' };
+  return { cls: 'badge bok', txt: 'Em ' + d + 'd' };
 }
-function statusMnt(m){
-  if(!m.proxData)return{cls:'chip',txt:'Sem data'};
-  var d=diffDias(m.proxData);
-  if(d<0)return{cls:'badge bvenc',txt:'Vencida '+Math.abs(d)+'d'};
-  if(d<=7)return{cls:'badge bwarn',txt:'Em '+d+'d'};
-  return{cls:'badge bok',txt:'Em '+d+'d'};
-}
-function renderMnt(){
-  var el=document.getElementById('lista-mnt');
-  var list=Object.entries(mnts).filter(([k,m])=>m.tipo===filtroMnt);
-  if(!list.length){el.innerHTML='<div class="empty">Nenhum item. Adicione acima.</div>';return}
-  var grps={};
-  list.forEach(([k,m])=>{var g=m.equip||'Geral';if(!grps[g])grps[g]=[];grps[g].push([k,m])});
-  el.innerHTML=Object.keys(grps).map(g=>
-    '<div class="section-sub">'+g+'</div>'+grps[g].map(([k,m])=>{
-      var st=statusMnt(m);
-      return '<div class="mnt-item">'+
-        '<div class="mnt-head"><div class="mnt-desc"><strong>'+m.sistema+'</strong> — '+m.desc+'</div>'+
-        '<div class="mnt-actions"><span class="'+st.cls+'">'+st.txt+'</span>'+
-        '<button class="btn btn-sm" style="background:var(--green-l);color:var(--green-t);border-color:var(--green-l)" onclick="registrarMnt(\''+k+'\')" title="Marcar como feito">✓</button>'+
-        '<button class="btn btn-sm btn-edit" onclick="editMntItem(\''+k+'\')" title="Editar">✏️</button>'+
-        '<button class="btn btn-sm btn-warn" onclick="editMntProx(\''+k+'\')" title="Editar data">📅</button>'+
-        '<button class="btn btn-sm btn-danger" onclick="removeMntItem(\''+k+'\')">🗑</button>'+
-        '</div></div>'+
-        '<div class="mnt-meta"><span>🔄 '+m.per+(m.refVal?' / '+m.refVal:'')+'</span>'+
-        '<span>📅 Próxima: '+(m.proxData?fmtData(m.proxData):'—')+'</span>'+
-        (m.ultimaData?'<span>✓ Última: '+fmtData(m.ultimaData)+(m.ultimaResp?' · '+m.ultimaResp:'')+'</span>':'')+
+function renderMnt() {
+  var el = document.getElementById('lista-mnt');
+  var list = Object.entries(mnts).filter(([k, m]) => m.tipo === filtroMnt);
+  if (!list.length) { el.innerHTML = '<div class="empty">Nenhum item. Adicione acima.</div>'; return; }
+  var grps = {};
+  list.forEach(([k, m]) => { var g = m.equip || 'Geral'; if (!grps[g]) grps[g] = []; grps[g].push([k, m]); });
+  el.innerHTML = Object.keys(grps).map(g =>
+    '<div class="section-sub">' + g + '</div>' + grps[g].map(([k, m]) => {
+      var st = statusMnt(m);
+      return '<div class="mnt-item"><div class="mnt-head"><div class="mnt-desc"><strong>' + m.sistema + '</strong> — ' + m.desc + '</div>' +
+        '<div class="mnt-actions"><span class="' + st.cls + '">' + st.txt + '</span>' +
+        '<button class="btn btn-sm" style="background:var(--green-l);color:var(--green-t);border-color:var(--green-l)" onclick="registrarMnt(\'' + k + '\')" title="Marcar como feito">✓</button>' +
+        '<button class="btn btn-sm btn-edit" onclick="editMntItem(\'' + k + '\')" title="Editar">✏️</button>' +
+        '<button class="btn btn-sm btn-warn" onclick="editMntProx(\'' + k + '\')" title="Editar data">📅</button>' +
+        '<button class="btn btn-sm btn-danger" onclick="removeMntItem(\'' + k + '\')">🗑</button>' +
+        '</div></div>' +
+        '<div class="mnt-meta"><span>🔄 ' + m.per + (m.refVal ? ' / ' + m.refVal : '') + '</span>' +
+        '<span>📅 Próxima: ' + (m.proxData ? fmtData(m.proxData) : '—') + '</span>' +
+        (m.ultimaData ? '<span>✓ Última: ' + fmtData(m.ultimaData) + (m.ultimaResp ? ' · ' + m.ultimaResp : '') + '</span>' : '') +
         '</div></div>';
     }).join('')
   ).join('');
 }
-function renderAlertasMnt(){
-  var el=document.getElementById('alertas-manut');
-  var venc=vals(mnts).filter(m=>m.proxData&&diffDias(m.proxData)<=3);
-  if(!venc.length){el.innerHTML='';return}
-  el.innerHTML=venc.map(m=>{
-    var d=diffDias(m.proxData);
-    return '<div class="alert-bar '+(d>=0?'warn':'')+'">⚠ '+m.equip+' — '+m.desc+' | '+(d<0?'Vencida há '+Math.abs(d)+'d':'Vence em '+d+'d')+'</div>';
+function renderAlertasMnt() {
+  var el = document.getElementById('alertas-manut');
+  var venc = vals(mnts).filter(m => m.proxData && diffDias(m.proxData) <= 3);
+  if (!venc.length) { el.innerHTML = ''; return; }
+  el.innerHTML = venc.map(m => {
+    var d = diffDias(m.proxData);
+    return '<div class="alert-bar ' + (d >= 0 ? 'warn' : '') + '">⚠ ' + m.equip + ' — ' + m.desc + ' | ' + (d < 0 ? 'Vencida há ' + Math.abs(d) + 'd' : 'Vence em ' + d + 'd') + '</div>';
   }).join('');
 }
 
 // ===== ALMOXARIFADO =====
-window.addAlmItem=function(){
-  var nome=document.getElementById('alm-nome').value.trim();
-  var cat=document.getElementById('alm-cat').value;
-  var aplica=Array.from(document.querySelectorAll('.alm-aplica-cb:checked')).map(cb=>cb.value).join(', ');
-  var min=parseInt(document.getElementById('alm-min').value)||0;
-  var qty=parseInt(document.getElementById('alm-qty').value)||0;
-  var und=document.getElementById('alm-und').value;
-  var obs=document.getElementById('alm-obs').value.trim();
-  if(!nome){toast('Informe o nome');return}
+window.addAlmItem = function() {
+  var nome = document.getElementById('alm-nome').value.trim();
+  var cat = document.getElementById('alm-cat').value;
+  var aplica = Array.from(document.querySelectorAll('.alm-cb:checked')).map(cb => cb.value).join(', ');
+  var min = parseInt(document.getElementById('alm-min').value) || 0;
+  var qty = parseInt(document.getElementById('alm-qty').value) || 0;
+  var und = document.getElementById('alm-und').value;
+  var obs = document.getElementById('alm-obs').value.trim();
+  if (!nome) { toast('Informe o nome'); return; }
   setSS('syncing');
-  push(ref(db,'almox'),{nome,cat,aplica,min,qty,und,obs})
-    .then(()=>{setSS('online');toast(nome+' cadastrado')})
-    .catch(()=>{setSS('offline');toast('Erro')});
-  ['alm-nome','alm-min','alm-qty','alm-obs'].forEach(x=>document.getElementById(x).value='');document.querySelectorAll('.alm-aplica-cb').forEach(cb=>cb.checked=false);
-}
-window.ajustarQty=function(key,delta){
-  var item=almox[key];if(!item)return;
-  update(ref(db,'almox/'+key),{qty:Math.max(0,(item.qty||0)+delta)});
-}
-window.removeAlmItem=function(key){
-  if(!confirm('Remover item?'))return;
-  remove(ref(db,'almox/'+key)).then(()=>toast('Removido'));
-}
-function renderAlmoxAplica(){
-  var lista=document.getElementById('alm-aplica-lista');if(!lista)return;
-  var todos=vals(frota).sort((a,b)=>a.id.localeCompare(b.id));
-  if(!todos.length){lista.innerHTML='<span style="font-size:13px;color:var(--text3)">Nenhum equipamento cadastrado.</span>';return}
-  lista.innerHTML=todos.map(f=>{
-    var cor=f.tipo==='c'?'var(--purple-t)':f.tipo==='e'?'var(--teal-t)':'var(--blue-t)';
-    var bg=f.tipo==='c'?'var(--purple-l)':f.tipo==='e'?'var(--teal-l)':'var(--blue-l)';
-    return '<label style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:'+bg+';cursor:pointer;font-size:12px;color:'+cor+'">'+
-      '<input type="checkbox" class="alm-aplica-cb" value="'+f.id+'" style="width:14px;height:14px;cursor:pointer"> '+f.id+'</label>';
-  }).join('');
-}
-window.editAlmItem=function(key){
-  var item=almox[key];if(!item)return;
-  var todosEquip=vals(frota).sort((a,b)=>a.id.localeCompare(b.id));
-  var selecionados=(item.aplica||'').split(',').map(s=>s.trim()).filter(Boolean);
-  var opts=todosEquip.length
-    ? todosEquip.map(f=>{
-        var cor=f.tipo==='c'?'var(--purple-t)':f.tipo==='e'?'var(--teal-t)':'var(--blue-t)';
-        var bg=f.tipo==='c'?'var(--purple-l)':f.tipo==='e'?'var(--teal-l)':'var(--blue-l)';
-        var chk=selecionados.includes(f.id)?'checked':'';
-        return '<label style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:'+bg+';cursor:pointer;font-size:12px;color:'+cor+';margin-bottom:4px">'+
-          '<input type="checkbox" class="ealm-cb" value="'+f.id+'" '+chk+' style="width:14px;height:14px;cursor:pointer"> '+f.id+'</label>';
+  push(ref(db, 'almox'), { nome, cat, aplica, min, qty, und, obs })
+    .then(() => { setSS('online'); toast(nome + ' cadastrado'); })
+    .catch(() => { setSS('offline'); toast('Erro'); });
+  ['alm-nome', 'alm-min', 'alm-qty', 'alm-obs'].forEach(x => document.getElementById(x).value = '');
+  document.querySelectorAll('.alm-cb').forEach(cb => cb.checked = false);
+};
+window.ajustarQty = function(key, delta) {
+  var item = almox[key]; if (!item) return;
+  update(ref(db, 'almox/' + key), { qty: Math.max(0, (item.qty || 0) + delta) });
+};
+window.removeAlmItem = function(key) {
+  if (!confirm('Remover item?')) return;
+  remove(ref(db, 'almox/' + key)).then(() => toast('Removido'));
+};
+window.editAlmItem = function(key) {
+  var item = almox[key]; if (!item) return;
+  var selecionados = (item.aplica || '').split(',').map(s => s.trim()).filter(Boolean);
+  var cats = ['Filtro', 'Pneu', 'Óleo / Fluido', 'Correia', 'Outro'];
+  var catOpts = cats.map(c => '<option value="' + c + '"' + (item.cat === c ? ' selected' : '') + '>' + c + '</option>').join('');
+  var undOpts = ['un', 'L', 'kg', 'par', 'cx'].map(u => '<option value="' + u + '"' + (item.und === u ? ' selected' : '') + '>' + u + '</option>').join('');
+  var listaEquip = vals(frota).sort((a, b) => a.id.localeCompare(b.id));
+  var equipChips = listaEquip.length
+    ? listaEquip.map(f => {
+        var c = chipEquip(f);
+        var chk = selecionados.includes(f.id) ? ' checked' : '';
+        return '<label class="aplica-chip" style="background:' + c.bg + ';color:' + c.cor + '"><input type="checkbox" class="ealm-cb" value="' + f.id + '"' + chk + '> ' + f.id + '</label>';
       }).join('')
-    : '<span style="font-size:13px;color:var(--text3)">Nenhum equipamento cadastrado.</span>';
-  var cats=['Filtro','Pneu','Óleo / Fluido','Correia','Outro'];
-  var catOpts=cats.map(c=>'<option value="'+c+'"'+(item.cat===c?' selected':'')+'>'+c+'</option>').join('');
-  var undOpts=['un','L','kg','par','cx'].map(u=>'<option value="'+u+'"'+(item.und===u?' selected':'')+'>'+u+'</option>').join('');
-  var ov=document.createElement('div');ov.className='overlay';
-  ov.innerHTML='<div class="modal"><div class="modal-title">✏️ Editar item</div>'+
-    '<label>Nome / código</label><input type="text" id="ealm-nome" value="'+item.nome+'" style="margin-top:4px">'+
-    '<label style="margin-top:10px">Categoria</label><select id="ealm-cat" style="margin-top:4px">'+catOpts+'</select>'+
-    '<label style="margin-top:10px">Aplica-se a <span style="font-size:11px;color:var(--text2)">(selecione)</span></label>'+
-    '<div style="border:1px solid var(--border2);border-radius:var(--r);padding:8px;max-height:100px;overflow-y:auto;margin-top:4px;display:flex;flex-wrap:wrap;gap:6px" id="ealm-aplica-wrap">'+opts+'</div>'+
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">'+
-    '<div><label>Estoque mínimo</label><input type="number" id="ealm-min" value="'+(item.min||0)+'" style="margin-top:4px"></div>'+
-    '<div><label>Unidade</label><select id="ealm-und" style="margin-top:4px">'+undOpts+'</select></div>'+
-    '</div>'+
-    '<label style="margin-top:10px">Observação</label><input type="text" id="ealm-obs" value="'+(item.obs||'')+'" style="margin-top:4px">'+
-    '<div class="modal-btns">'+
-    '<button onclick="this.closest(\'.overlay\').remove()" style="border:1px solid var(--border2);background:var(--bg);color:var(--text)">Cancelar</button>'+
-    '<button id="ealm-ok" style="background:var(--purple);color:#fff;border:none">💾 Salvar</button>'+
-    '</div></div>';
-  document.body.appendChild(ov);
-  ov.querySelector('#ealm-ok').onclick=()=>{
-    var nome=ov.querySelector('#ealm-nome').value.trim();
-    if(!nome){toast('Informe o nome');return}
-    var cat=ov.querySelector('#ealm-cat').value;
-    var aplica=Array.from(ov.querySelectorAll('.ealm-cb:checked')).map(cb=>cb.value).join(', ');
-    var min=parseInt(ov.querySelector('#ealm-min').value)||0;
-    var und=ov.querySelector('#ealm-und').value;
-    var obs=ov.querySelector('#ealm-obs').value.trim();
-    ov.remove();
-    setSS('syncing');
-    update(ref(db,'almox/'+key),{nome,cat,aplica,min,und,obs})
-      .then(()=>{setSS('online');toast(nome+' atualizado')})
-      .catch(()=>{setSS('offline');toast('Erro ao salvar')});
-  };
-}
-window.setAlmFiltro=function(cat){almFiltro=cat;renderAlmox()}
-function renderAlmox(){
-  var cats=['todos','Filtro','Pneu','Óleo / Fluido','Correia','Outro'];
-  document.getElementById('alm-filtros').innerHTML=cats.map(c=>{
-    var a=c===almFiltro;
-    return '<button onclick="setAlmFiltro(\''+c+'\')" style="padding:5px 12px;border:1px solid '+(a?'var(--purple)':'var(--border2)')+';border-radius:20px;background:'+(a?'var(--purple-l)':'var(--bg)')+';color:'+(a?'var(--purple-t)':'var(--text2)')+';font-size:12px;cursor:pointer;font-weight:'+(a?'600':'400')+'">'+c+'</button>';
+    : '<span style="font-size:13px;color:var(--text3)">Nenhum equipamento.</span>';
+  var html = '<label>Nome / código</label><input type="text" id="ealm-nome" value="' + item.nome + '" style="margin-top:4px">' +
+    '<label style="margin-top:10px">Categoria</label><select id="ealm-cat" style="margin-top:4px">' + catOpts + '</select>' +
+    '<label style="margin-top:10px">Aplica-se a</label>' +
+    '<div class="aplica-wrap" style="margin-top:4px">' + equipChips + '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">' +
+    '<div><label>Estoque mínimo</label><input type="number" id="ealm-min" value="' + (item.min || 0) + '" style="margin-top:4px"></div>' +
+    '<div><label>Unidade</label><select id="ealm-und" style="margin-top:4px">' + undOpts + '</select></div>' +
+    '</div>' +
+    '<label style="margin-top:10px">Observação</label><input type="text" id="ealm-obs" value="' + (item.obs || '') + '" style="margin-top:4px">';
+  abrirModal('✏️ Editar item', null, html, ov => {
+    var nome = ov.querySelector('#ealm-nome').value.trim();
+    if (!nome) { toast('Informe o nome'); return; }
+    var cat = ov.querySelector('#ealm-cat').value;
+    var aplica = Array.from(ov.querySelectorAll('.ealm-cb:checked')).map(cb => cb.value).join(', ');
+    var min = parseInt(ov.querySelector('#ealm-min').value) || 0;
+    var und = ov.querySelector('#ealm-und').value;
+    var obs = ov.querySelector('#ealm-obs').value.trim();
+    ov.remove(); setSS('syncing');
+    update(ref(db, 'almox/' + key), { nome, cat, aplica, min, und, obs })
+      .then(() => { setSS('online'); toast(nome + ' atualizado'); })
+      .catch(() => { setSS('offline'); toast('Erro ao salvar'); });
+  }, '💾 Salvar');
+};
+window.setAlmFiltro = function(cat) { almFiltro = cat; renderAlmox(); };
+function renderAlmox() {
+  var cats = ['todos', 'Filtro', 'Pneu', 'Óleo / Fluido', 'Correia', 'Outro'];
+  document.getElementById('alm-filtros').innerHTML = cats.map(c => {
+    var a = c === almFiltro;
+    return '<button onclick="setAlmFiltro(\'' + c + '\')" style="padding:5px 12px;border:1px solid ' + (a ? 'var(--purple)' : 'var(--border2)') + ';border-radius:20px;background:' + (a ? 'var(--purple-l)' : 'var(--bg)') + ';color:' + (a ? 'var(--purple-t)' : 'var(--text2)') + ';font-size:12px;cursor:pointer;font-weight:' + (a ? '600' : '400') + '">' + c + '</button>';
   }).join('');
-  var el=document.getElementById('lista-alm');
-  var list=Object.entries(almox).filter(([k,x])=>almFiltro==='todos'||x.cat===almFiltro);
-  if(!list.length){el.innerHTML='<div class="empty">Nenhum item.</div>';return}
-  el.innerHTML=list.map(([key,item])=>{
-    var baixo=item.qty<=item.min&&item.min>0;
-    return '<div class="stock-row"><div class="stock-info">'+
-      '<div class="stock-nome">'+item.nome+(baixo?' <span class="badge bvenc">Estoque baixo</span>':'')+'</div>'+
-      '<div class="stock-cat"><span class="chip">'+item.cat+'</span>'+(item.aplica?' · '+item.aplica:'')+(item.obs?' · '+item.obs:'')+(item.min>0?' · Mín: '+item.min+' '+item.und:'')+'</div>'+
-      '</div><div class="stock-qty">'+
-      '<button class="qty-btn" onclick="ajustarQty(\''+key+'\',-1)">−</button>'+
-      '<div class="qty-val" style="color:'+(baixo?'var(--red-t)':'var(--text)')+'">'+item.qty+'</div>'+
-      '<button class="qty-btn" onclick="ajustarQty(\''+key+'\',1)">+</button>'+
-      ' <span style="font-size:11px;color:var(--text2)">'+item.und+'</span>'+
-      '<button class="btn btn-sm btn-edit" onclick="editAlmItem(\''+key+'\')" style="margin-left:6px">✏️</button>'+
-      '<button class="btn btn-sm btn-danger" onclick="removeAlmItem(\''+key+'\')" style="margin-left:6px">🗑</button>'+
+  var el = document.getElementById('lista-alm');
+  var list = Object.entries(almox).filter(([k, x]) => almFiltro === 'todos' || x.cat === almFiltro);
+  if (!list.length) { el.innerHTML = '<div class="empty">Nenhum item.</div>'; return; }
+  el.innerHTML = list.map(([key, item]) => {
+    var baixo = item.qty <= item.min && item.min > 0;
+    return '<div class="stock-row"><div class="stock-info">' +
+      '<div class="stock-nome">' + item.nome + (baixo ? ' <span class="badge bvenc">Estoque baixo</span>' : '') + '</div>' +
+      '<div class="stock-cat"><span class="chip">' + item.cat + '</span>' + (item.aplica ? ' · ' + item.aplica : '') + (item.obs ? ' · ' + item.obs : '') + (item.min > 0 ? ' · Mín: ' + item.min + ' ' + item.und : '') + '</div>' +
+      '</div><div class="stock-qty">' +
+      '<button class="qty-btn" onclick="ajustarQty(\'' + key + '\',-1)">−</button>' +
+      '<div class="qty-val" style="color:' + (baixo ? 'var(--red-t)' : 'var(--text)') + '">' + item.qty + '</div>' +
+      '<button class="qty-btn" onclick="ajustarQty(\'' + key + '\',1)">+</button>' +
+      ' <span style="font-size:11px;color:var(--text2)">' + item.und + '</span>' +
+      '<button class="btn btn-sm btn-edit" onclick="editAlmItem(\'' + key + '\')" style="margin-left:6px">✏️</button>' +
+      '<button class="btn btn-sm btn-danger" onclick="removeAlmItem(\'' + key + '\')" style="margin-left:4px">🗑</button>' +
       '</div></div>';
   }).join('');
 }
 
 // ===== RELATÓRIO =====
-function buildData(lista,mk){
-  var d={};lista.forEach(x=>{if(!d[x.equip])d[x.equip]={litros:0,metric:0};d[x.equip].litros+=x.litros;d[x.equip].metric+=x[mk]||0});
-  return Object.entries(d).sort((a,b)=>b[1].litros-a[1].litros);
+function buildData(lista, mk) {
+  var d = {};
+  lista.forEach(x => { if (!d[x.equip]) d[x.equip] = { litros: 0, metric: 0 }; d[x.equip].litros += x.litros; d[x.equip].metric += x[mk] || 0; });
+  return Object.entries(d).sort((a, b) => b[1].litros - a[1].litros);
 }
-var _relatData={};
-window.renderRelat=function(){
-  var mes=getMes();
-  var lista=vals(abasts).filter(x=>x.data.startsWith(mes));
-  var cams=lista.filter(x=>x.tipo==='c');
-  var emps=lista.filter(x=>x.tipo==='e');
-  _relatData={mes,lista,cams,emps};
-
-  function renderBars(entries,ml,elId){
-    if(!entries.length){document.getElementById(elId).innerHTML='<div class="empty">Sem dados.</div>';return}
-    var maxL=Math.max(...entries.map(e=>e[1].litros),1);
-    var maxM=Math.max(...entries.map(e=>e[1].metric),1);
-    document.getElementById(elId).innerHTML=entries.map(([k,v])=>
-      '<div style="margin-bottom:10px"><div style="font-size:12px;color:var(--text2);margin-bottom:3px">'+k+'</div>'+
-      '<div class="bar-row"><div class="bar-label" style="font-size:11px">Litros</div><div class="bar-bg"><div class="bar-fill" style="width:'+Math.round(v.litros/maxL*100)+'%"></div></div><div class="bar-val">'+v.litros.toLocaleString('pt-BR')+' L</div></div>'+
-      '<div class="bar-row"><div class="bar-label" style="font-size:11px">'+ml+'</div><div class="bar-bg"><div class="bar-fill bar-fill-b" style="width:'+Math.round(v.metric/maxM*100)+'%"></div></div><div class="bar-val">'+(v.metric>0?(ml==='Km'?Math.round(v.metric).toLocaleString('pt-BR'):v.metric.toFixed(1)):0)+' '+(ml==='Km'?'km':'h')+'</div></div></div>'
+window.renderRelat = function() {
+  var mes = getMes();
+  var lista = vals(abasts).filter(x => x.data.startsWith(mes));
+  var cams = lista.filter(x => x.tipo === 'c');
+  var emps = lista.filter(x => x.tipo === 'e');
+  function renderBars(entries, ml, elId) {
+    if (!entries.length) { document.getElementById(elId).innerHTML = '<div class="empty">Sem dados.</div>'; return; }
+    var maxL = Math.max(...entries.map(e => e[1].litros), 1);
+    var maxM = Math.max(...entries.map(e => e[1].metric), 1);
+    document.getElementById(elId).innerHTML = entries.map(([k, v]) =>
+      '<div style="margin-bottom:10px"><div style="font-size:12px;color:var(--text2);margin-bottom:3px">' + k + '</div>' +
+      '<div class="bar-row"><div class="bar-label" style="font-size:11px">Litros</div><div class="bar-bg"><div class="bar-fill" style="width:' + Math.round(v.litros / maxL * 100) + '%"></div></div><div class="bar-val">' + v.litros.toLocaleString('pt-BR') + ' L</div></div>' +
+      '<div class="bar-row"><div class="bar-label" style="font-size:11px">' + ml + '</div><div class="bar-bg"><div class="bar-fill bar-fill-b" style="width:' + Math.round(v.metric / maxM * 100) + '%"></div></div><div class="bar-val">' + (v.metric > 0 ? (ml === 'Km' ? Math.round(v.metric).toLocaleString('pt-BR') : v.metric.toFixed(1)) : 0) + ' ' + (ml === 'Km' ? 'km' : 'h') + '</div></div></div>'
     ).join('');
   }
-  renderBars(buildData(cams,'delta'),'Km','gr-cam');
-  renderBars(buildData(emps,'delta'),'Horas','gr-emp');
-  var ec=buildData(cams,'delta');
-  document.getElementById('ef-cam').innerHTML=ec.length?ec.map(([k,v])=>{
-    var m=v.metric>0&&v.litros>0?(v.metric/v.litros).toFixed(2):null;
-    var cls=m?(parseFloat(m)>=3.5?'bok':parseFloat(m)>=2.5?'bwarn':'bbad'):'';
-    return '<div class="info-row"><span style="color:var(--text2)">'+k+'</span><span>'+(m?'<span class="badge '+cls+'">'+m+' km/L</span>':'<span class="chip">sem km</span>')+'</span></div>';
-  }).join(''):'<div class="empty">Sem dados.</div>';
-  var ee=buildData(emps,'delta');
-  document.getElementById('ef-emp').innerHTML=ee.length?ee.map(([k,v])=>{
-    var m=v.metric>0&&v.litros>0?(v.litros/v.metric).toFixed(2):null;
-    var cls=m?(parseFloat(m)<=2.5?'bok':parseFloat(m)<=3.5?'bwarn':'bbad'):'';
-    return '<div class="info-row"><span style="color:var(--text2)">'+k+'</span><span>'+(m?'<span class="badge '+cls+'">'+m+' L/h</span>':'<span class="chip">sem horas</span>')+'</span></div>';
-  }).join(''):'<div class="empty">Sem dados.</div>';
-  var cd={};lista.forEach(x=>{if(!cd[x.colabNome])cd[x.colabNome]={litros:0};cd[x.colabNome].litros+=x.litros});
-  var ce=Object.entries(cd).sort((a,b)=>b[1].litros-a[1].litros);
-  var maxC=ce[0]?ce[0][1].litros:1;
-  document.getElementById('gr-colab').innerHTML=ce.length?ce.map(([k,v])=>
-    '<div class="bar-row"><div class="bar-label">'+k.split(' ')[0]+'</div><div class="bar-bg"><div class="bar-fill" style="width:'+Math.round(v.litros/maxC*100)+'%"></div></div><div class="bar-val">'+v.litros.toLocaleString('pt-BR')+' L</div></div>'
-  ).join(''):'<div class="empty">Sem dados.</div>';
-  var tL=lista.reduce((a,x)=>a+x.litros,0);
-  var tKm=cams.reduce((a,x)=>a+(x.delta||0),0);
-  var tHr=emps.reduce((a,x)=>a+(x.delta||0),0);
-  document.getElementById('r-tot').innerHTML=tL.toLocaleString('pt-BR')+' <span class="met-u">L</span>';
-  document.getElementById('r-km').innerHTML=Math.round(tKm).toLocaleString('pt-BR')+' <span class="met-u">km</span>';
-  document.getElementById('r-hr').innerHTML=tHr.toFixed(1)+' <span class="met-u">h</span>';
-  document.getElementById('r-qtd').textContent=lista.length;
-}
+  renderBars(buildData(cams, 'delta'), 'Km', 'gr-cam');
+  renderBars(buildData(emps, 'delta'), 'Horas', 'gr-emp');
+  var ec = buildData(cams, 'delta');
+  document.getElementById('ef-cam').innerHTML = ec.length ? ec.map(([k, v]) => {
+    var m = v.metric > 0 && v.litros > 0 ? (v.metric / v.litros).toFixed(2) : null;
+    var cls = m ? (parseFloat(m) >= 3.5 ? 'bok' : parseFloat(m) >= 2.5 ? 'bwarn' : 'bbad') : '';
+    return '<div class="info-row"><span style="color:var(--text2)">' + k + '</span><span>' + (m ? '<span class="badge ' + cls + '">' + m + ' km/L</span>' : '<span class="chip">sem km</span>') + '</span></div>';
+  }).join('') : '<div class="empty">Sem dados.</div>';
+  var ee = buildData(emps, 'delta');
+  document.getElementById('ef-emp').innerHTML = ee.length ? ee.map(([k, v]) => {
+    var m = v.metric > 0 && v.litros > 0 ? (v.litros / v.metric).toFixed(2) : null;
+    var cls = m ? (parseFloat(m) <= 2.5 ? 'bok' : parseFloat(m) <= 3.5 ? 'bwarn' : 'bbad') : '';
+    return '<div class="info-row"><span style="color:var(--text2)">' + k + '</span><span>' + (m ? '<span class="badge ' + cls + '">' + m + ' L/h</span>' : '<span class="chip">sem horas</span>') + '</span></div>';
+  }).join('') : '<div class="empty">Sem dados.</div>';
+  var cd = {}; lista.forEach(x => { if (!cd[x.colabNome]) cd[x.colabNome] = { litros: 0 }; cd[x.colabNome].litros += x.litros; });
+  var ce = Object.entries(cd).sort((a, b) => b[1].litros - a[1].litros);
+  var maxC = ce[0] ? ce[0][1].litros : 1;
+  document.getElementById('gr-colab').innerHTML = ce.length ? ce.map(([k, v]) =>
+    '<div class="bar-row"><div class="bar-label">' + k.split(' ')[0] + '</div><div class="bar-bg"><div class="bar-fill" style="width:' + Math.round(v.litros / maxC * 100) + '%"></div></div><div class="bar-val">' + v.litros.toLocaleString('pt-BR') + ' L</div></div>'
+  ).join('') : '<div class="empty">Sem dados.</div>';
+  var tL = lista.reduce((a, x) => a + x.litros, 0);
+  var tKm = cams.reduce((a, x) => a + (x.delta || 0), 0);
+  var tHr = emps.reduce((a, x) => a + (x.delta || 0), 0);
+  document.getElementById('r-tot').innerHTML = tL.toLocaleString('pt-BR') + ' <span class="met-u">L</span>';
+  document.getElementById('r-km').innerHTML = Math.round(tKm).toLocaleString('pt-BR') + ' <span class="met-u">km</span>';
+  document.getElementById('r-hr').innerHTML = tHr.toFixed(1) + ' <span class="met-u">h</span>';
+  document.getElementById('r-qtd').textContent = lista.length;
+};
 
 // ===== HISTÓRICO =====
-function renderHistAbast(){
-  var ha=document.getElementById('tab-hist-a');
-  var lista=vals(abasts).sort((a,b)=>b.data.localeCompare(a.data));
-  if(!lista.length){ha.innerHTML='<div class="empty">Nenhum abastecimento.</div>';return}
-  ha.innerHTML='<table><thead><tr><th>Data</th><th>Equip.</th><th>Litros</th><th>Ref.</th><th>Colaborador</th><th></th></tr></thead><tbody>'+
-    lista.slice(0,80).map((r,i)=>{
-      var key=Object.keys(abasts).find(k=>abasts[k]===r)||Object.keys(abasts)[i];
-      var realKey=Object.entries(abasts).find(([k,v])=>v.data===r.data&&v.equip===r.equip&&v.litros===r.litros);
-      var rk=realKey?realKey[0]:'';
-      var isE=r.tipo==='e';
-      var refStr=r.ref!=null?(isE?r.ref.toFixed(1)+' h':Math.round(r.ref).toLocaleString('pt-BR')+' km'):'—';
-      return '<tr><td>'+fmtDt(r.data)+'</td><td><span class="badge '+tipoBadge(r.tipo)+'">'+r.equip+'</span></td>'+
-        '<td>'+r.litros+' L</td><td>'+refStr+'</td><td>'+(r.colabNome||'—')+'</td>'+
-        '<td style="white-space:nowrap">'+
-        (rk?'<button class="btn btn-sm btn-edit" onclick="editAbast(\''+rk+'\')" style="margin-right:3px">✏️</button>'+
-        '<button class="btn btn-sm btn-danger" onclick="deleteAbast(\''+rk+'\')">🗑</button>':'')+
-        '</td></tr>';
-    }).join('')+'</tbody></table>';
+function renderHistAbast() {
+  var ha = document.getElementById('tab-hist-a');
+  var lista = vals(abasts).sort((a, b) => b.data.localeCompare(a.data));
+  if (!lista.length) { ha.innerHTML = '<div class="empty">Nenhum abastecimento.</div>'; return; }
+  ha.innerHTML = '<table><thead><tr><th>Data</th><th>Equip.</th><th>Litros</th><th>Ref.</th><th>Colaborador</th><th></th></tr></thead><tbody>' +
+    lista.slice(0, 80).map(r => {
+      var rk = Object.entries(abasts).find(([k, v]) => v.data === r.data && v.equip === r.equip && v.litros === r.litros);
+      var key = rk ? rk[0] : '';
+      var isE = r.tipo === 'e';
+      var refStr = r.ref != null ? (isE ? r.ref.toFixed(1) + ' h' : Math.round(r.ref).toLocaleString('pt-BR') + ' km') : '—';
+      return '<tr><td>' + fmtDt(r.data) + '</td><td><span class="badge ' + tipoBadge(r.tipo) + '">' + r.equip + '</span></td><td>' + r.litros + ' L</td><td>' + refStr + '</td><td>' + (r.colabNome || '—') + '</td>' +
+        '<td style="white-space:nowrap">' + (key ? '<button class="btn btn-sm btn-edit" onclick="editAbast(\'' + key + '\')" style="margin-right:3px">✏️</button><button class="btn btn-sm btn-danger" onclick="deleteAbast(\'' + key + '\')">🗑</button>' : '') + '</td></tr>';
+    }).join('') + '</tbody></table>';
 }
-function renderHistMnt(){
-  var hm=document.getElementById('tab-hist-m');
-  var lista=vals(histMnt).sort((a,b)=>b.data.localeCompare(a.data));
-  if(!lista.length){hm.innerHTML='<div class="empty">Nenhuma manutenção registrada.</div>';return}
-  hm.innerHTML='<table><thead><tr><th>Data</th><th>Equip.</th><th>Sistema</th><th>Descrição</th><th>Responsável</th><th></th></tr></thead><tbody>'+
-    lista.slice(0,80).map(r=>{
-      var rk=Object.entries(histMnt).find(([k,v])=>v.data===r.data&&v.equip===r.equip&&v.desc===r.desc);
-      var key=rk?rk[0]:'';
-      return '<tr><td>'+fmtDt(r.data)+'</td><td><span class="badge '+tipoBadge(r.tipo)+'">'+r.equip+'</span></td>'+
-        '<td>'+r.sistema+'</td><td>'+r.desc+(r.obs?'<br><span style="font-size:11px;color:var(--text2)">'+r.obs+'</span>':'')+'</td>'+
-        '<td>'+(r.colabNome||'—')+'</td>'+
-        '<td style="white-space:nowrap">'+
-        (key?'<button class="btn btn-sm btn-edit" onclick="editHistMnt(\''+key+'\')" style="margin-right:3px">✏️</button>'+
-        '<button class="btn btn-sm btn-danger" onclick="deleteHistMnt(\''+key+'\')">🗑</button>':'')+
-        '</td></tr>';
-    }).join('')+'</tbody></table>';
+function renderHistMnt() {
+  var hm = document.getElementById('tab-hist-m');
+  var lista = vals(histMnt).sort((a, b) => b.data.localeCompare(a.data));
+  if (!lista.length) { hm.innerHTML = '<div class="empty">Nenhuma manutenção registrada.</div>'; return; }
+  hm.innerHTML = '<table><thead><tr><th>Data</th><th>Equip.</th><th>Sistema</th><th>Descrição</th><th>Responsável</th><th></th></tr></thead><tbody>' +
+    lista.slice(0, 80).map(r => {
+      var rk = Object.entries(histMnt).find(([k, v]) => v.data === r.data && v.equip === r.equip && v.desc === r.desc);
+      var key = rk ? rk[0] : '';
+      return '<tr><td>' + fmtDt(r.data) + '</td><td><span class="badge ' + tipoBadge(r.tipo) + '">' + r.equip + '</span></td><td>' + r.sistema + '</td><td>' + r.desc + (r.obs ? '<br><span style="font-size:11px;color:var(--text2)">' + r.obs + '</span>' : '') + '</td><td>' + (r.colabNome || '—') + '</td>' +
+        '<td style="white-space:nowrap">' + (key ? '<button class="btn btn-sm btn-edit" onclick="editHistMnt(\'' + key + '\')" style="margin-right:3px">✏️</button><button class="btn btn-sm btn-danger" onclick="deleteHistMnt(\'' + key + '\')">🗑</button>' : '') + '</td></tr>';
+    }).join('') + '</tbody></table>';
 }
 
 // ===== EXPORT CSV =====
-window.exportCSV=function(){
-  var mes=getMes();
-  var lista=vals(abasts).filter(x=>x.data.startsWith(mes));
-  if(!lista.length){toast('Nenhum dado');return}
-  var cab='Data,Tipo,Equipamento,Litros,Referência,Delta,Eficiência,Colaborador,Matrícula,Observação\n';
-  var linhas=lista.sort((a,b)=>b.data.localeCompare(a.data)).map(x=>{
-    var isE=x.tipo==='e';
-    return [x.data.slice(0,16).replace('T',' '),tipoLabel(x.tipo),x.equip,x.litros,x.ref||'',x.delta||'',x.ef?(isE?x.ef.toFixed(2)+' L/h':x.ef.toFixed(2)+' km/L'):'',x.colabNome||'',x.colabMat||'',x.obs||''].join(',');
+window.exportCSV = function() {
+  var mes = getMes();
+  var lista = vals(abasts).filter(x => x.data.startsWith(mes));
+  if (!lista.length) { toast('Nenhum dado'); return; }
+  var cab = 'Data,Tipo,Equipamento,Litros,Referência,Delta,Eficiência,Colaborador,Matrícula,Observação\n';
+  var linhas = lista.sort((a, b) => b.data.localeCompare(a.data)).map(x => {
+    var isE = x.tipo === 'e';
+    return [x.data.slice(0, 16).replace('T', ' '), tipoLabel(x.tipo), x.equip, x.litros, x.ref || '', x.delta || '', x.ef ? (isE ? x.ef.toFixed(2) + ' L/h' : x.ef.toFixed(2) + ' km/L') : '', x.colabNome || '', x.colabMat || '', x.obs || ''].join(',');
   }).join('\n');
-  var blob=new Blob(['\uFEFF'+cab+linhas],{type:'text/csv;charset=utf-8'});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');a.href=url;a.download='frota_'+mes+'.csv';a.click();URL.revokeObjectURL(url);
+  var blob = new Blob(['\uFEFF' + cab + linhas], { type: 'text/csv;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href = url; a.download = 'frota_' + mes + '.csv'; a.click(); URL.revokeObjectURL(url);
   toast('CSV exportado!');
-}
+};
 
 // ===== EXPORT PDF =====
-window.exportPDF=function(){
-  var mes=getMes();
-  var nMes=meses()[parseInt(mes.split('-')[1])-1]+' '+mes.split('-')[0];
-  var lista=vals(abasts).filter(x=>x.data.startsWith(mes)).sort((a,b)=>b.data.localeCompare(a.data));
-  var cams=lista.filter(x=>x.tipo==='c');
-  var emps=lista.filter(x=>x.tipo==='e');
-  var tL=lista.reduce((a,x)=>a+x.litros,0);
-  var tKm=cams.reduce((a,x)=>a+(x.delta||0),0);
-  var tHr=emps.reduce((a,x)=>a+(x.delta||0),0);
-  var ec=buildData(cams,'delta');
-  var ee=buildData(emps,'delta');
-  var cd={};lista.forEach(x=>{if(!cd[x.colabNome])cd[x.colabNome]={litros:0};cd[x.colabNome].litros+=x.litros});
-  var ce=Object.entries(cd).sort((a,b)=>b[1].litros-a[1].litros);
+window.exportPDF = function() {
+  var mes = getMes();
+  var nMes = nomeMes() + ' ' + mes.split('-')[0];
+  var lista = vals(abasts).filter(x => x.data.startsWith(mes)).sort((a, b) => b.data.localeCompare(a.data));
+  var cams = lista.filter(x => x.tipo === 'c');
+  var emps = lista.filter(x => x.tipo === 'e');
+  var tL = lista.reduce((a, x) => a + x.litros, 0);
+  var tKm = cams.reduce((a, x) => a + (x.delta || 0), 0);
+  var tHr = emps.reduce((a, x) => a + (x.delta || 0), 0);
+  var ec = buildData(cams, 'delta');
+  var ee = buildData(emps, 'delta');
+  var cd = {}; lista.forEach(x => { if (!cd[x.colabNome]) cd[x.colabNome] = { litros: 0 }; cd[x.colabNome].litros += x.litros; });
+  var ce = Object.entries(cd).sort((a, b) => b[1].litros - a[1].litros);
 
-  function barsSVG(entries,ml,maxW){
-    if(!entries.length)return'<p style="color:#888;font-size:12px">Sem dados.</p>';
-    var maxL=Math.max(...entries.map(e=>e[1].litros),1);
-    var maxM=Math.max(...entries.map(e=>e[1].metric),1);
-    return entries.map(([k,v])=>`
-      <div style="margin-bottom:10px">
-        <div style="font-size:11px;color:#555;margin-bottom:3px">${k}</div>
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-          <div style="width:60px;font-size:10px;color:#888">Litros</div>
-          <div style="flex:1;background:#eee;border-radius:3px;height:10px;overflow:hidden">
-            <div style="width:${Math.round(v.litros/maxL*100)}%;height:100%;background:#533AB7;border-radius:3px"></div>
-          </div>
-          <div style="width:55px;text-align:right;font-size:10px;color:#555">${v.litros.toLocaleString('pt-BR')} L</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="width:60px;font-size:10px;color:#888">${ml}</div>
-          <div style="flex:1;background:#eee;border-radius:3px;height:10px;overflow:hidden">
-            <div style="width:${Math.round(v.metric/maxM*100)}%;height:100%;background:#1D9E75;border-radius:3px"></div>
-          </div>
-          <div style="width:55px;text-align:right;font-size:10px;color:#555">${v.metric>0?(ml==='Km'?Math.round(v.metric).toLocaleString('pt-BR'):v.metric.toFixed(1)):0} ${ml==='Km'?'km':'h'}</div>
-        </div>
-      </div>`).join('');
+  function barsSVG(entries, ml) {
+    if (!entries.length) return '<p style="color:#888;font-size:12px">Sem dados.</p>';
+    var maxL = Math.max(...entries.map(e => e[1].litros), 1);
+    var maxM = Math.max(...entries.map(e => e[1].metric), 1);
+    return entries.map(([k, v]) =>
+      '<div style="margin-bottom:10px"><div style="font-size:11px;color:#555;margin-bottom:3px">' + k + '</div>' +
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><div style="width:60px;font-size:10px;color:#888">Litros</div><div style="flex:1;background:#eee;border-radius:3px;height:10px;overflow:hidden"><div style="width:' + Math.round(v.litros / maxL * 100) + '%;height:100%;background:#533AB7;border-radius:3px"></div></div><div style="width:55px;text-align:right;font-size:10px;color:#555">' + v.litros.toLocaleString('pt-BR') + ' L</div></div>' +
+      '<div style="display:flex;align-items:center;gap:6px"><div style="width:60px;font-size:10px;color:#888">' + ml + '</div><div style="flex:1;background:#eee;border-radius:3px;height:10px;overflow:hidden"><div style="width:' + Math.round(v.metric / maxM * 100) + '%;height:100%;background:#1D9E75;border-radius:3px"></div></div><div style="width:55px;text-align:right;font-size:10px;color:#555">' + (v.metric > 0 ? (ml === 'Km' ? Math.round(v.metric).toLocaleString('pt-BR') : v.metric.toFixed(1)) : 0) + ' ' + (ml === 'Km' ? 'km' : 'h') + '</div></div></div>'
+    ).join('');
+  }
+  function efTabela(entries, unit, isEmp) {
+    if (!entries.length) return '<p style="color:#888;font-size:12px">Sem dados.</p>';
+    return '<table style="width:100%;border-collapse:collapse;font-size:11px">' +
+      entries.map(([k, v]) => {
+        var m = v.metric > 0 && v.litros > 0 ? (isEmp ? (v.litros / v.metric) : (v.metric / v.litros)).toFixed(2) : null;
+        var cor = m ? (isEmp ? (parseFloat(m) <= 2.5 ? '#27500A' : parseFloat(m) <= 3.5 ? '#633806' : '#791F1F') : (parseFloat(m) >= 3.5 ? '#27500A' : parseFloat(m) >= 2.5 ? '#633806' : '#791F1F')) : '#555';
+        var bg = m ? (isEmp ? (parseFloat(m) <= 2.5 ? '#EAF3DE' : parseFloat(m) <= 3.5 ? '#FAEEDA' : '#FCEBEB') : (parseFloat(m) >= 3.5 ? '#EAF3DE' : parseFloat(m) >= 2.5 ? '#FAEEDA' : '#FCEBEB')) : '#eee';
+        return '<tr><td style="padding:5px 8px;border-bottom:1px solid #eee;color:#555">' + k + '</td><td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">' + (m ? '<span style="background:' + bg + ';color:' + cor + ';padding:2px 8px;border-radius:10px;font-weight:600">' + m + ' ' + unit + '</span>' : '<span style="color:#888">sem dados</span>') + '</td></tr>';
+      }).join('') + '</table>';
   }
 
-  function efTabela(entries,unit,isEmp){
-    if(!entries.length)return'<p style="color:#888;font-size:12px">Sem dados.</p>';
-    return'<table style="width:100%;border-collapse:collapse;font-size:11px">'+
-    entries.map(([k,v])=>{
-      var m=v.metric>0&&v.litros>0?(isEmp?(v.litros/v.metric):(v.metric/v.litros)).toFixed(2):null;
-      var cor=m?(isEmp?(parseFloat(m)<=2.5?'#27500A':parseFloat(m)<=3.5?'#633806':'#791F1F'):(parseFloat(m)>=3.5?'#27500A':parseFloat(m)>=2.5?'#633806':'#791F1F')):'#555';
-      var bg=m?(isEmp?(parseFloat(m)<=2.5?'#EAF3DE':parseFloat(m)<=3.5?'#FAEEDA':'#FCEBEB'):(parseFloat(m)>=3.5?'#EAF3DE':parseFloat(m)>=2.5?'#FAEEDA':'#FCEBEB')):'#eee';
-      return'<tr><td style="padding:5px 8px;border-bottom:1px solid #eee;color:#555">'+k+'</td>'+
-        '<td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right">'+(m?'<span style="background:'+bg+';color:'+cor+';padding:2px 8px;border-radius:10px;font-weight:600">'+m+' '+unit+'</span>':'<span style="color:#888">sem dados</span>')+'</td></tr>';
-    }).join('')+'</table>';
-  }
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório ' + nMes + '</title>' +
+    '<style>body{font-family:-apple-system,sans-serif;color:#1a1a1a;margin:0;padding:20px;font-size:13px}h1{color:#533AB7;font-size:20px;margin-bottom:4px}h2{color:#533AB7;font-size:14px;margin:20px 0 10px;padding-bottom:6px;border-bottom:2px solid #EEEDFE}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}.met{background:#f6f6f3;border-radius:8px;padding:12px}.met-l{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}.met-v{font-size:22px;font-weight:700;color:#1a1a1a}.met-u{font-size:11px;color:#888;font-weight:400}.card{background:#fff;border:1px solid #e2e2dc;border-radius:10px;padding:14px;margin-bottom:14px}table{width:100%;border-collapse:collapse;font-size:11px}th{text-align:left;padding:6px 8px;background:#533AB7;color:#fff;font-size:11px}td{padding:6px 8px;border-bottom:1px solid #eee}@media print{body{padding:10px}}</style></head><body>' +
+    '<h1>Relatório de Frota — ' + nMes + '</h1>' +
+    '<p style="color:#888;font-size:12px;margin-bottom:16px">Gerado em ' + new Date().toLocaleString('pt-BR') + '</p>' +
+    '<div class="grid"><div class="met"><div class="met-l">Total consumido</div><div class="met-v">' + tL.toLocaleString('pt-BR') + ' <span class="met-u">L</span></div></div>' +
+    '<div class="met"><div class="met-l">Km caminhões</div><div class="met-v">' + Math.round(tKm).toLocaleString('pt-BR') + ' <span class="met-u">km</span></div></div>' +
+    '<div class="met"><div class="met-l">Horas emp.</div><div class="met-v">' + tHr.toFixed(1) + ' <span class="met-u">h</span></div></div>' +
+    '<div class="met"><div class="met-l">Abastecimentos</div><div class="met-v">' + lista.length + '</div></div></div>' +
+    '<div class="card"><h2 style="margin-top:0">Caminhões — consumo e km</h2>' + barsSVG(buildData(cams, 'delta'), 'Km') + '</div>' +
+    '<div class="card"><h2 style="margin-top:0">Eficiência caminhões (km/L)</h2>' + efTabela(ec, 'km/L', false) + '</div>' +
+    '<div class="card"><h2 style="margin-top:0">Empilhadeiras — consumo e horas</h2>' + barsSVG(buildData(emps, 'delta'), 'Horas') + '</div>' +
+    '<div class="card"><h2 style="margin-top:0">Eficiência empilhadeiras (L/h)</h2>' + efTabela(ee, 'L/h', true) + '</div>' +
+    '<div class="card"><h2 style="margin-top:0">Consumo por colaborador</h2>' +
+    (ce.length ? '<table><thead><tr><th>Colaborador</th><th>Litros</th></tr></thead><tbody>' + ce.map(([k, v]) => '<tr><td>' + k + '</td><td>' + v.litros.toLocaleString('pt-BR') + ' L</td></tr>').join('') + '</tbody></table>' : '<p style="color:#888;font-size:12px">Sem dados.</p>') + '</div>' +
+    '<div class="card"><h2 style="margin-top:0">Abastecimentos do mês</h2>' +
+    (lista.length ? '<table><thead><tr><th>Data</th><th>Tipo</th><th>Equip.</th><th>Litros</th><th>Ref.</th><th>Eficiência</th><th>Colaborador</th><th>Assinatura</th></tr></thead><tbody>' +
+    lista.map(r => {
+      var isE = r.tipo === 'e';
+      var refStr = r.ref != null ? (isE ? r.ref.toFixed(1) + ' h' : Math.round(r.ref).toLocaleString('pt-BR') + ' km') : '—';
+      var efStr = r.ef ? (isE ? r.ef.toFixed(2) + ' L/h' : r.ef.toFixed(2) + ' km/L') : '—';
+      return '<tr><td>' + fmtDt(r.data) + '</td><td>' + tipoLabel(r.tipo) + '</td><td>' + r.equip + '</td><td>' + r.litros + ' L</td><td>' + refStr + '</td><td>' + efStr + '</td><td>' + (r.colabNome || '—') + '</td><td style="min-width:120px;border-bottom:1px solid #999;vertical-align:bottom;padding-bottom:2px">&nbsp;</td></tr>';
+    }).join('') + '</tbody></table>' : '<p style="color:#888;font-size:12px">Sem dados.</p>') + '</div>' +
+    '<script>window.onload=function(){window.print()}<\/script></body></html>';
 
-  var html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
-  <title>Relatório ${nMes}</title>
-  <style>
-    body{font-family:-apple-system,sans-serif;color:#1a1a1a;margin:0;padding:20px;font-size:13px}
-    h1{color:#533AB7;font-size:20px;margin-bottom:4px}
-    h2{color:#533AB7;font-size:14px;margin:20px 0 10px;padding-bottom:6px;border-bottom:2px solid #EEEDFE}
-    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
-    .met{background:#f6f6f3;border-radius:8px;padding:12px}
-    .met-l{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
-    .met-v{font-size:22px;font-weight:700;color:#1a1a1a}
-    .met-u{font-size:11px;color:#888;font-weight:400}
-    .card{background:#fff;border:1px solid #e2e2dc;border-radius:10px;padding:14px;margin-bottom:14px}
-    table{width:100%;border-collapse:collapse;font-size:11px}
-    th{text-align:left;padding:6px 8px;background:#533AB7;color:#fff;font-size:11px}
-    td{padding:6px 8px;border-bottom:1px solid #eee}
-    .badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600}
-    @media print{body{padding:10px}}
-  </style></head><body>
-  <h1>📊 Relatório de Frota — ${nMes}</h1>
-  <p style="color:#888;font-size:12px;margin-bottom:16px">Gerado em ${new Date().toLocaleString('pt-BR')}</p>
-  <div class="grid">
-    <div class="met"><div class="met-l">Total consumido</div><div class="met-v">${tL.toLocaleString('pt-BR')} <span class="met-u">L</span></div></div>
-    <div class="met"><div class="met-l">Km caminhões</div><div class="met-v">${Math.round(tKm).toLocaleString('pt-BR')} <span class="met-u">km</span></div></div>
-    <div class="met"><div class="met-l">Horas emp.</div><div class="met-v">${tHr.toFixed(1)} <span class="met-u">h</span></div></div>
-    <div class="met"><div class="met-l">Abastecimentos</div><div class="met-v">${lista.length}</div></div>
-  </div>
-  <div class="card"><h2 style="margin-top:0">🚛 Caminhões — consumo e km</h2>${barsSVG(buildData(cams,'delta'),'Km')}</div>
-  <div class="card"><h2 style="margin-top:0">⚡ Eficiência caminhões (km/L)</h2>${efTabela(ec,'km/L',false)}</div>
-  <div class="card"><h2 style="margin-top:0">🏗 Empilhadeiras — consumo e horas</h2>${barsSVG(buildData(emps,'delta'),'Horas')}</div>
-  <div class="card"><h2 style="margin-top:0">⚡ Eficiência empilhadeiras (L/h)</h2>${efTabela(ee,'L/h',true)}</div>
-  <div class="card"><h2 style="margin-top:0">👥 Consumo por colaborador</h2>
-    ${ce.length?'<table><thead><tr><th>Colaborador</th><th>Litros</th></tr></thead><tbody>'+
-    ce.map(([k,v])=>'<tr><td>'+k+'</td><td>'+v.litros.toLocaleString('pt-BR')+' L</td></tr>').join('')+
-    '</tbody></table>':'<p style="color:#888;font-size:12px">Sem dados.</p>'}
-  </div>
-  <div class="card"><h2 style="margin-top:0">📋 Abastecimentos do mês</h2>
-    ${lista.length?'<table><thead><tr><th>Data</th><th>Tipo</th><th>Equip.</th><th>Litros</th><th>Ref.</th><th>Eficiência</th><th>Colaborador</th><th>Assinatura</th></tr></thead><tbody>'+
-    lista.map(r=>{
-      var isE=r.tipo==='e';
-      var refStr=r.ref!=null?(isE?r.ref.toFixed(1)+' h':Math.round(r.ref).toLocaleString('pt-BR')+' km'):'—';
-      var efStr=r.ef?(isE?r.ef.toFixed(2)+' L/h':r.ef.toFixed(2)+' km/L'):'—';
-      return'<tr><td>'+fmtDt(r.data)+'</td><td>'+tipoLabel(r.tipo)+'</td><td>'+r.equip+'</td><td>'+r.litros+' L</td><td>'+refStr+'</td><td>'+efStr+'</td><td>'+(r.colabNome||'—')+'</td><td style="min-width:120px;border-bottom:1px solid #999;vertical-align:bottom;padding-bottom:2px">&nbsp;</td></tr>';
-    }).join('')+'</tbody></table>':'<p style="color:#888;font-size:12px">Sem dados.</p>'}
-  </div>
-  <script>window.onload=function(){window.print()}<\/script>
-  </body></html>`;
-
-  var w=window.open('','_blank');
+  var w = window.open('', '_blank');
   w.document.write(html);
   w.document.close();
-}
+};
 
 // INIT
-var ms=meses();
-document.getElementById('sync-label').textContent=ms[new Date().getMonth()]+' '+new Date().getFullYear();
+document.getElementById('sync-label').textContent = nomeMes() + ' ' + new Date().getFullYear();
+renderApplicaLista('alm-aplica-lista', '.alm-cb', []);
 </script>
 </body>
 </html>
