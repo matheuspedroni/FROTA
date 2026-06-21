@@ -1164,6 +1164,27 @@ window.exportPDF = function() {
       var efStr = r.ef ? (isE ? r.ef.toFixed(2) + ' L/h' : r.ef.toFixed(2) + ' km/L') : '—';
       return '<tr><td>' + fmtDt(r.data) + '</td><td>' + tipoLabel(r.tipo) + '</td><td>' + r.equip + '</td><td>' + r.litros + ' L</td><td>' + refStr + '</td><td>' + efStr + '</td><td>' + (r.colabNome || '—') + '</td><td style="min-width:120px;border-bottom:1px solid #999;vertical-align:bottom;padding-bottom:2px">&nbsp;</td></tr>';
     }).join('') + '</tbody></table>' : '<p style="color:#888;font-size:12px">Sem dados.</p>') + '</div>' +
+    (function() {
+      var osDoMes = vals(ordens).filter(function(o){ return o.data && o.data.startsWith(mes); }).sort(function(a,b){ return (a.data||'').localeCompare(b.data||''); });
+      var osGrps = {}; osDoMes.forEach(function(o){ if(!osGrps[o.equip]) osGrps[o.equip]={total:0,itens:[]}; osGrps[o.equip].total+=o.valor||0; osGrps[o.equip].itens.push(o); });
+      var osSorted = Object.entries(osGrps).sort(function(a,b){ return b[1].total-a[1].total; });
+      var osTotal = osDoMes.reduce(function(a,o){ return a+(o.valor||0); }, 0);
+      return osDoMes.length ?
+        '<div class="card"><h2 style="margin-top:0">🧾 Ordens de Serviço — Serviços Externos</h2>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#FCEBEB;border-radius:8px;margin-bottom:14px">' +
+        '<span style="font-size:13px;color:#791F1F;font-weight:600">Total gasto em serviços externos</span>' +
+        '<span style="font-size:20px;font-weight:700;color:#791F1F">R$ ' + osTotal.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span>' +
+        '</div>' +
+        osSorted.map(function(e){ var k=e[0],v=e[1];
+          return '<div style="margin-bottom:14px"><div style="font-size:12px;font-weight:600;color:#533AB7;text-transform:uppercase;letter-spacing:.5px;padding-bottom:4px;border-bottom:2px solid #EEEDFE;margin-bottom:6px">' + k + ' — R$ ' + v.total.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</div>' +
+          '<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr><th style="text-align:left;padding:5px 8px;background:#533AB7;color:#fff">Data</th><th style="text-align:left;padding:5px 8px;background:#533AB7;color:#fff">Mecânica</th><th style="text-align:left;padding:5px 8px;background:#533AB7;color:#fff">Descrição</th><th style="text-align:right;padding:5px 8px;background:#533AB7;color:#fff">Valor</th></tr></thead><tbody>' +
+          v.itens.map(function(o,i){
+            return '<tr style="background:' + (i%2===0?'#fff':'#f6f6f3') + '"><td style="padding:5px 8px;border-bottom:1px solid #eee">' + fmtData(o.data) + '</td><td style="padding:5px 8px;border-bottom:1px solid #eee">' + o.mecanica + '</td><td style="padding:5px 8px;border-bottom:1px solid #eee">' + o.desc + '</td><td style="padding:5px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:600;color:#791F1F">R$ ' + (o.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</td></tr>';
+          }).join('') +
+          '</tbody></table></div>';
+        }).join('') +
+        '</div>' : '';
+    })() +
     '<script>window.onload=function(){window.print()}<\/script></body></html>';
 
   var w = window.open('', '_blank');
