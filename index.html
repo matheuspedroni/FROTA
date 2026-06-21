@@ -931,6 +931,53 @@ function renderAlmoxAplica(){
       '<input type="checkbox" class="alm-aplica-cb" value="'+f.id+'" style="width:14px;height:14px;cursor:pointer"> '+f.id+'</label>';
   }).join('');
 }
+window.editAlmItem=function(key){
+  var item=almox[key];if(!item)return;
+  var todosEquip=vals(frota).sort((a,b)=>a.id.localeCompare(b.id));
+  var selecionados=(item.aplica||'').split(',').map(s=>s.trim()).filter(Boolean);
+  var opts=todosEquip.length
+    ? todosEquip.map(f=>{
+        var cor=f.tipo==='c'?'var(--purple-t)':f.tipo==='e'?'var(--teal-t)':'var(--blue-t)';
+        var bg=f.tipo==='c'?'var(--purple-l)':f.tipo==='e'?'var(--teal-l)':'var(--blue-l)';
+        var chk=selecionados.includes(f.id)?'checked':'';
+        return '<label style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:'+bg+';cursor:pointer;font-size:12px;color:'+cor+';margin-bottom:4px">'+
+          '<input type="checkbox" class="ealm-cb" value="'+f.id+'" '+chk+' style="width:14px;height:14px;cursor:pointer"> '+f.id+'</label>';
+      }).join('')
+    : '<span style="font-size:13px;color:var(--text3)">Nenhum equipamento cadastrado.</span>';
+  var cats=['Filtro','Pneu','Óleo / Fluido','Correia','Outro'];
+  var catOpts=cats.map(c=>'<option value="'+c+'"'+(item.cat===c?' selected':'')+'>'+c+'</option>').join('');
+  var undOpts=['un','L','kg','par','cx'].map(u=>'<option value="'+u+'"'+(item.und===u?' selected':'')+'>'+u+'</option>').join('');
+  var ov=document.createElement('div');ov.className='overlay';
+  ov.innerHTML='<div class="modal"><div class="modal-title">✏️ Editar item</div>'+
+    '<label>Nome / código</label><input type="text" id="ealm-nome" value="'+item.nome+'" style="margin-top:4px">'+
+    '<label style="margin-top:10px">Categoria</label><select id="ealm-cat" style="margin-top:4px">'+catOpts+'</select>'+
+    '<label style="margin-top:10px">Aplica-se a <span style="font-size:11px;color:var(--text2)">(selecione)</span></label>'+
+    '<div style="border:1px solid var(--border2);border-radius:var(--r);padding:8px;max-height:100px;overflow-y:auto;margin-top:4px;display:flex;flex-wrap:wrap;gap:6px" id="ealm-aplica-wrap">'+opts+'</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">'+
+    '<div><label>Estoque mínimo</label><input type="number" id="ealm-min" value="'+(item.min||0)+'" style="margin-top:4px"></div>'+
+    '<div><label>Unidade</label><select id="ealm-und" style="margin-top:4px">'+undOpts+'</select></div>'+
+    '</div>'+
+    '<label style="margin-top:10px">Observação</label><input type="text" id="ealm-obs" value="'+(item.obs||'')+'" style="margin-top:4px">'+
+    '<div class="modal-btns">'+
+    '<button onclick="this.closest('.overlay').remove()" style="border:1px solid var(--border2);background:var(--bg);color:var(--text)">Cancelar</button>'+
+    '<button id="ealm-ok" style="background:var(--purple);color:#fff;border:none">💾 Salvar</button>'+
+    '</div></div>';
+  document.body.appendChild(ov);
+  ov.querySelector('#ealm-ok').onclick=()=>{
+    var nome=ov.querySelector('#ealm-nome').value.trim();
+    if(!nome){toast('Informe o nome');return}
+    var cat=ov.querySelector('#ealm-cat').value;
+    var aplica=Array.from(ov.querySelectorAll('.ealm-cb:checked')).map(cb=>cb.value).join(', ');
+    var min=parseInt(ov.querySelector('#ealm-min').value)||0;
+    var und=ov.querySelector('#ealm-und').value;
+    var obs=ov.querySelector('#ealm-obs').value.trim();
+    ov.remove();
+    setSS('syncing');
+    update(ref(db,'almox/'+key),{nome,cat,aplica,min,und,obs})
+      .then(()=>{setSS('online');toast(nome+' atualizado')})
+      .catch(()=>{setSS('offline');toast('Erro ao salvar')});
+  };
+}
 window.setAlmFiltro=function(cat){almFiltro=cat;renderAlmox()}
 function renderAlmox(){
   var cats=['todos','Filtro','Pneu','Óleo / Fluido','Correia','Outro'];
@@ -951,6 +998,7 @@ function renderAlmox(){
       '<div class="qty-val" style="color:'+(baixo?'var(--red-t)':'var(--text)')+'">'+item.qty+'</div>'+
       '<button class="qty-btn" onclick="ajustarQty(\''+key+'\',1)">+</button>'+
       ' <span style="font-size:11px;color:var(--text2)">'+item.und+'</span>'+
+      '<button class="btn btn-sm btn-edit" onclick="editAlmItem(\''+key+'')" style="margin-left:6px">✏️</button>'+
       '<button class="btn btn-sm btn-danger" onclick="removeAlmItem(\''+key+'\')" style="margin-left:6px">🗑</button>'+
       '</div></div>';
   }).join('');
