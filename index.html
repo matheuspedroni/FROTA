@@ -294,7 +294,14 @@ tr:last-child td{border-bottom:none}
   </div>
   <div class="card">
     <div class="card-title">📦 Estoque atual</div>
-    <div id="alm-filtros" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div style="margin-bottom:8px">
+      <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Tipo de equipamento</div>
+      <div id="alm-filtros-tipo" style="display:flex;gap:7px;flex-wrap:wrap"></div>
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Categoria</div>
+      <div id="alm-filtros-cat" style="display:flex;gap:7px;flex-wrap:wrap"></div>
+    </div>
     <div id="lista-alm"><div class="loading"><span class="spinner"></span>Carregando...</div></div>
   </div>
 </div>
@@ -460,7 +467,7 @@ setSS('online');
 
 // STATE
 var abasts = {}, frota = {}, colabs = {}, mnts = {}, histMnt = {}, almox = {}, ordens = {};
-var tipoAbast = 'c', tipoMnt = 'c', frotaTipo = 'c', filtroMnt = 'c', almFiltro = 'todos';
+var tipoAbast = 'c', tipoMnt = 'c', frotaTipo = 'c', filtroMnt = 'c', almFiltro = 'todos', almFiltroTipo = 'todos';
 
 // UTILS
 function getMes() { var n = new Date(); return n.getFullYear() + '-' + (n.getMonth() + 1).toString().padStart(2, '0'); }
@@ -987,14 +994,43 @@ window.editAlmItem = function(key) {
   }, '💾 Salvar');
 };
 window.setAlmFiltro = function(cat) { almFiltro = cat; renderAlmox(); };
+window.setAlmFiltroTipo = function(tipo) { almFiltroTipo = tipo; renderAlmox(); };
+function tipoDoItem(item) {
+  if (!item.aplica) return 'todos';
+  var aplica = item.aplica.split(',').map(s => s.trim()).filter(Boolean);
+  var tipos = aplica.map(id => { var f = frota[id]; return f ? f.tipo : null; }).filter(Boolean);
+  if (!tipos.length) return 'todos';
+  // se tem mais de um tipo, retorna 'misto'
+  var uniq = [...new Set(tipos)];
+  return uniq.length === 1 ? uniq[0] : 'misto';
+}
 function renderAlmox() {
+  // filtro tipo
+  var tipoOpts = [
+    { val: 'todos', label: 'Todos' },
+    { val: 'c', label: '🚛 Caminhões' },
+    { val: 'e', label: '🏗 Empilhadeiras' },
+    { val: 'g', label: '🔩 Guindastes' },
+    { val: 'misto', label: '🔀 Múltiplos' },
+  ];
+  var tipoEl = document.getElementById('alm-filtros-tipo');
+  if (tipoEl) tipoEl.innerHTML = tipoOpts.map(t => {
+    var a = t.val === almFiltroTipo;
+    return '<button onclick="setAlmFiltroTipo(\'' + t.val + '\')" style="padding:5px 12px;border:1px solid ' + (a ? 'var(--purple)' : 'var(--border2)') + ';border-radius:20px;background:' + (a ? 'var(--purple-l)' : 'var(--bg)') + ';color:' + (a ? 'var(--purple-t)' : 'var(--text2)') + ';font-size:12px;cursor:pointer;font-weight:' + (a ? '600' : '400') + '">' + t.label + '</button>';
+  }).join('');
+  // filtro categoria
   var cats = ['todos', 'Filtro', 'Pneu', 'Óleo / Fluido', 'Correia', 'Outro'];
-  document.getElementById('alm-filtros').innerHTML = cats.map(c => {
+  var catEl = document.getElementById('alm-filtros-cat');
+  if (catEl) catEl.innerHTML = cats.map(c => {
     var a = c === almFiltro;
     return '<button onclick="setAlmFiltro(\'' + c + '\')" style="padding:5px 12px;border:1px solid ' + (a ? 'var(--purple)' : 'var(--border2)') + ';border-radius:20px;background:' + (a ? 'var(--purple-l)' : 'var(--bg)') + ';color:' + (a ? 'var(--purple-t)' : 'var(--text2)') + ';font-size:12px;cursor:pointer;font-weight:' + (a ? '600' : '400') + '">' + c + '</button>';
   }).join('');
   var el = document.getElementById('lista-alm');
-  var list = Object.entries(almox).filter(([k, x]) => almFiltro === 'todos' || x.cat === almFiltro);
+  var list = Object.entries(almox).filter(([k, x]) => {
+    var catOk = almFiltro === 'todos' || x.cat === almFiltro;
+    var tipoOk = almFiltroTipo === 'todos' || tipoDoItem(x) === almFiltroTipo;
+    return catOk && tipoOk;
+  });
   if (!list.length) { el.innerHTML = '<div class="empty">Nenhum item.</div>'; return; }
   el.innerHTML = list.map(([key, item]) => {
     var baixo = item.qty <= item.min && item.min > 0;
