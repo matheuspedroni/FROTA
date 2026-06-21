@@ -270,7 +270,7 @@ tr:last-child td{border-bottom:none}
       </div>
     </div>
     <div class="r2">
-      <div><label>Aplica-se a</label><input type="text" id="alm-aplica" placeholder="ex: EMP-001, EMP-002"></div>
+      <div><label>Aplica-se a <span style="font-size:11px;color:var(--text2)">(selecione um ou mais)</span></label><div id="alm-aplica-wrap" style="border:1px solid var(--border2);border-radius:var(--r);padding:8px 10px;max-height:110px;overflow-y:auto;background:var(--bg);margin-top:4px"><div id="alm-aplica-lista"><span style="font-size:13px;color:var(--text3)">Carregando...</span></div></div></div>
       <div><label>Estoque mínimo</label><input type="number" id="alm-min" placeholder="ex: 2" min="0"></div>
     </div>
     <div class="r2">
@@ -454,7 +454,7 @@ window.showTab=function(id){
 }
 
 // LISTENERS
-onValue(ref(db,'frota'),snap=>{frota=snap.val()||{};populaSelects();populaMntEquip();renderFrota()});
+onValue(ref(db,'frota'),snap=>{frota=snap.val()||{};populaSelects();populaMntEquip();renderFrota();renderAlmoxAplica();});
 onValue(ref(db,'colabs'),snap=>{colabs=snap.val()||{};populaSelects();renderColabs()});
 onValue(ref(db,'abasts'),snap=>{abasts=snap.val()||{};atualizarMetrics();renderAlertasAbast();renderHistAbast()});
 onValue(ref(db,'mnts'),snap=>{mnts=snap.val()||{};renderMnt();renderAlertasMnt();renderAlertasAbast()});
@@ -900,7 +900,7 @@ function renderAlertasMnt(){
 window.addAlmItem=function(){
   var nome=document.getElementById('alm-nome').value.trim();
   var cat=document.getElementById('alm-cat').value;
-  var aplica=document.getElementById('alm-aplica').value.trim();
+  var aplica=Array.from(document.querySelectorAll('.alm-aplica-cb:checked')).map(cb=>cb.value).join(', ');
   var min=parseInt(document.getElementById('alm-min').value)||0;
   var qty=parseInt(document.getElementById('alm-qty').value)||0;
   var und=document.getElementById('alm-und').value;
@@ -910,7 +910,7 @@ window.addAlmItem=function(){
   push(ref(db,'almox'),{nome,cat,aplica,min,qty,und,obs})
     .then(()=>{setSS('online');toast(nome+' cadastrado')})
     .catch(()=>{setSS('offline');toast('Erro')});
-  ['alm-nome','alm-aplica','alm-min','alm-qty','alm-obs'].forEach(x=>document.getElementById(x).value='');
+  ['alm-nome','alm-min','alm-qty','alm-obs'].forEach(x=>document.getElementById(x).value='');document.querySelectorAll('.alm-aplica-cb').forEach(cb=>cb.checked=false);
 }
 window.ajustarQty=function(key,delta){
   var item=almox[key];if(!item)return;
@@ -919,6 +919,17 @@ window.ajustarQty=function(key,delta){
 window.removeAlmItem=function(key){
   if(!confirm('Remover item?'))return;
   remove(ref(db,'almox/'+key)).then(()=>toast('Removido'));
+}
+function renderAlmoxAplica(){
+  var lista=document.getElementById('alm-aplica-lista');if(!lista)return;
+  var todos=vals(frota).sort((a,b)=>a.id.localeCompare(b.id));
+  if(!todos.length){lista.innerHTML='<span style="font-size:13px;color:var(--text3)">Nenhum equipamento cadastrado.</span>';return}
+  lista.innerHTML=todos.map(f=>{
+    var cor=f.tipo==='c'?'var(--purple-t)':f.tipo==='e'?'var(--teal-t)':'var(--blue-t)';
+    var bg=f.tipo==='c'?'var(--purple-l)':f.tipo==='e'?'var(--teal-l)':'var(--blue-l)';
+    return '<label style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:'+bg+';cursor:pointer;font-size:12px;color:'+cor+'">'+
+      '<input type="checkbox" class="alm-aplica-cb" value="'+f.id+'" style="width:14px;height:14px;cursor:pointer"> '+f.id+'</label>';
+  }).join('');
 }
 window.setAlmFiltro=function(cat){almFiltro=cat;renderAlmox()}
 function renderAlmox(){
