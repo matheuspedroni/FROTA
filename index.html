@@ -158,6 +158,7 @@ tr:last-child td{border-bottom:none}
   <button class="tab" onclick="showTab('frota')">🚛 Frota</button>
   <button class="tab" onclick="showTab('colab')">👥 Colaboradores</button>
   <button class="tab" onclick="showTab('relat')">📊 Relatório</button>
+  <button class="tab" onclick="showTab('os')">🧾 Ordens de Serviço</button>
   <button class="tab" onclick="showTab('hist')">📋 Histórico</button>
 </div></div>
 <div class="content">
@@ -368,6 +369,53 @@ tr:last-child td{border-bottom:none}
   </div>
 </div>
 
+<!-- ORDENS DE SERVIÇO -->
+<div id="tab-os" class="sec">
+  <div class="card">
+    <div class="card-title">🧾 Registrar Ordem de Serviço</div>
+    <div class="r2">
+      <div>
+        <label>Equipamento</label>
+        <select id="os-equip"><option value="">Selecione...</option></select>
+      </div>
+      <div>
+        <label>Data do serviço</label>
+        <input type="date" id="os-data">
+      </div>
+    </div>
+    <div class="r2">
+      <div>
+        <label>Mecânica / Fornecedor</label>
+        <input type="text" id="os-mecanica" placeholder="ex: Auto Peças Silva">
+      </div>
+      <div>
+        <label>Valor (R$)</label>
+        <input type="number" id="os-valor" placeholder="ex: 850.00" min="0" step="0.01">
+      </div>
+    </div>
+    <label>Descrição do serviço</label>
+    <input type="text" id="os-desc" placeholder="ex: Troca de embreagem, alinhamento...">
+    <label>Anexar OS em PDF</label>
+    <input type="file" id="os-pdf" accept="application/pdf" style="margin-top:4px;padding:8px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg);color:var(--text);font-size:13px">
+    <div id="os-upload-progress" style="display:none;margin-top:8px">
+      <div style="background:var(--bg2);border-radius:4px;height:8px;overflow:hidden">
+        <div id="os-progress-bar" style="height:100%;background:var(--purple);border-radius:4px;width:0%;transition:width .3s"></div>
+      </div>
+      <div id="os-progress-label" style="font-size:12px;color:var(--text2);margin-top:4px">Enviando...</div>
+    </div>
+    <button class="btn btn-p" onclick="registrarOS()">💾 Salvar Ordem de Serviço</button>
+  </div>
+  <div class="card">
+    <div class="card-title">📊 Gastos por equipamento</div>
+    <div id="os-relat-filtros" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div id="os-relat"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">🧾 Ordens de Serviço registradas</div>
+    <div id="lista-os"><div class="loading"><span class="spinner"></span>Carregando...</div></div>
+  </div>
+</div>
+
 <!-- HISTÓRICO -->
 <div id="tab-hist" class="sec">
   <div class="card">
@@ -385,6 +433,7 @@ tr:last-child td{border-bottom:none}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBqX8iLAtPTPHMIIHEBg3sGsDPVdHKq24U",
@@ -398,6 +447,7 @@ const firebaseConfig = {
 const SENHA = 'mpedroni';
 const fbApp = initializeApp(firebaseConfig);
 const db = getDatabase(fbApp);
+const storage = getStorage(fbApp);
 
 // STATUS
 function setSS(s) {
@@ -409,7 +459,7 @@ window.addEventListener('offline', () => setSS('offline'));
 setSS('online');
 
 // STATE
-var abasts = {}, frota = {}, colabs = {}, mnts = {}, histMnt = {}, almox = {};
+var abasts = {}, frota = {}, colabs = {}, mnts = {}, histMnt = {}, almox = {}, ordens = {};
 var tipoAbast = 'c', tipoMnt = 'c', frotaTipo = 'c', filtroMnt = 'c', almFiltro = 'todos';
 
 // UTILS
@@ -468,13 +518,14 @@ function abrirModal(titulo, sub, conteudoHTML, onOk, okLabel) {
 }
 
 // NAV
-var TABS = ['abast', 'manut', 'almox', 'frota', 'colab', 'relat', 'hist'];
+var TABS = ['abast', 'manut', 'almox', 'frota', 'colab', 'relat', 'os', 'hist'];
 window.showTab = function(id) {
   TABS.forEach((n, i) => {
     document.querySelectorAll('.tab')[i].classList.toggle('active', n === id);
     document.getElementById('tab-' + n).classList.toggle('active', n === id);
   });
   if (id === 'relat') renderRelat();
+  if (id === 'os') { renderOSRelat(); renderListaOS(); populaOSEquip(); }
   if (id === 'hist') { renderHistAbast(); renderHistMnt(); }
 };
 
@@ -485,6 +536,7 @@ onValue(ref(db, 'abasts'), snap => { abasts = snap.val() || {}; atualizarMetrics
 onValue(ref(db, 'mnts'), snap => { mnts = snap.val() || {}; renderMnt(); renderAlertasMnt(); renderAlertasAbast(); });
 onValue(ref(db, 'histMnt'), snap => { histMnt = snap.val() || {}; renderHistMnt(); });
 onValue(ref(db, 'almox'), snap => { almox = snap.val() || {}; renderAlmox(); });
+onValue(ref(db, 'os'), snap => { ordens = snap.val() || {}; renderListaOS(); renderOSRelat(); });
 
 // RENDER LISTA APLICA (reutilizável)
 function renderApplicaLista(containerId, cbClass, selecionados) {
@@ -1118,6 +1170,127 @@ window.exportPDF = function() {
   w.document.write(html);
   w.document.close();
 };
+
+// ===== ORDENS DE SERVIÇO =====
+function populaOSEquip() {
+  var se = document.getElementById('os-equip'); if (!se) return;
+  var lista = vals(frota).sort((a, b) => a.id.localeCompare(b.id));
+  se.innerHTML = '<option value="">Selecione...</option>' + lista.map(f =>
+    '<option value="' + f.id + '">' + f.id + ' — ' + f.modelo + '</option>').join('');
+}
+window.registrarOS = async function() {
+  var equip = document.getElementById('os-equip').value;
+  var data = document.getElementById('os-data').value;
+  var mecanica = document.getElementById('os-mecanica').value.trim();
+  var valor = parseFloat(document.getElementById('os-valor').value) || 0;
+  var desc = document.getElementById('os-desc').value.trim();
+  var fileInput = document.getElementById('os-pdf');
+  var file = fileInput.files[0];
+  if (!equip) { toast('Selecione o equipamento'); return; }
+  if (!mecanica) { toast('Informe a mecânica/fornecedor'); return; }
+  if (!desc) { toast('Informe a descrição do serviço'); return; }
+  var pdfUrl = null;
+  var pdfNome = null;
+  if (file) {
+    if (file.type !== 'application/pdf') { toast('Apenas arquivos PDF são aceitos'); return; }
+    var prog = document.getElementById('os-upload-progress');
+    var bar = document.getElementById('os-progress-bar');
+    var lbl = document.getElementById('os-progress-label');
+    prog.style.display = 'block'; bar.style.width = '30%'; lbl.textContent = 'Enviando PDF...';
+    try {
+      var storageRef = sRef(storage, 'os/' + equip + '/' + Date.now() + '_' + file.name);
+      bar.style.width = '60%';
+      var snap = await uploadBytes(storageRef, file);
+      bar.style.width = '90%'; lbl.textContent = 'Finalizando...';
+      pdfUrl = await getDownloadURL(snap.ref);
+      pdfNome = file.name;
+      bar.style.width = '100%'; lbl.textContent = 'PDF enviado!';
+      setTimeout(() => { prog.style.display = 'none'; bar.style.width = '0%'; }, 1500);
+    } catch(e) { prog.style.display = 'none'; toast('Erro ao enviar PDF: ' + e.message); return; }
+  }
+  setSS('syncing');
+  push(ref(db, 'os'), { equip, data: data || getHoje(), mecanica, valor, desc, pdfUrl, pdfNome, criadoEm: new Date().toISOString() })
+    .then(() => { setSS('online'); toast('OS registrada!');
+      document.getElementById('os-equip').value = '';
+      document.getElementById('os-data').value = '';
+      document.getElementById('os-mecanica').value = '';
+      document.getElementById('os-valor').value = '';
+      document.getElementById('os-desc').value = '';
+      document.getElementById('os-pdf').value = '';
+    }).catch(() => { setSS('offline'); toast('Erro ao salvar'); });
+};
+window.deleteOS = function(key) {
+  pedirSenha('Excluir Ordem de Serviço', () => {
+    var o = ordens[key]; if (!o) return;
+    var deleDb = remove(ref(db, 'os/' + key));
+    if (o.pdfUrl) {
+      try {
+        var fileRef = sRef(storage, o.pdfUrl);
+        deleteObject(fileRef).catch(() => {});
+      } catch(e) {}
+    }
+    deleDb.then(() => toast('OS excluída'));
+  });
+};
+var osFiltroMes = getMes();
+function renderOSRelat() {
+  var el = document.getElementById('os-relat'); if (!el) return;
+  var meses = ['todos', getMes()];
+  var lista = vals(ordens);
+  // filtros de mês
+  var mesesDisp = [...new Set(lista.map(o => o.data ? o.data.slice(0,7) : '').filter(Boolean))].sort().reverse();
+  var filEl = document.getElementById('os-relat-filtros'); if (!filEl) return;
+  filEl.innerHTML = ['todos', ...mesesDisp].map(m => {
+    var a = m === osFiltroMes;
+    var label = m === 'todos' ? 'Todos' : (new Date(m + '-15').toLocaleDateString('pt-BR', {month:'long', year:'numeric'}));
+    return '<button onclick="setOSFiltroMes(\'' + m + '\')" style="padding:5px 12px;border:1px solid ' + (a ? 'var(--purple)' : 'var(--border2)') + ';border-radius:20px;background:' + (a ? 'var(--purple-l)' : 'var(--bg)') + ';color:' + (a ? 'var(--purple-t)' : 'var(--text2)') + ';font-size:12px;cursor:pointer;font-weight:' + (a ? '600' : '400') + '">' + label + '</button>';
+  }).join('');
+  var filtrada = osFiltroMes === 'todos' ? lista : lista.filter(o => o.data && o.data.startsWith(osFiltroMes));
+  if (!filtrada.length) { el.innerHTML = '<div class="empty">Nenhuma OS registrada.</div>'; return; }
+  // agrupar por equipamento
+  var grps = {}; filtrada.forEach(o => { if (!grps[o.equip]) grps[o.equip] = { total: 0, qtd: 0 }; grps[o.equip].total += o.valor || 0; grps[o.equip].qtd++; });
+  var sorted = Object.entries(grps).sort((a, b) => b[1].total - a[1].total);
+  var totalGeral = sorted.reduce((a, [k, v]) => a + v.total, 0);
+  var maxVal = sorted[0] ? sorted[0][1].total : 1;
+  el.innerHTML = '<div style="margin-bottom:12px;padding:10px;background:var(--red-l);border-radius:var(--r);display:flex;justify-content:space-between;align-items:center">' +
+    '<span style="font-size:13px;color:var(--red-t);font-weight:600">Total gasto no período</span>' +
+    '<span style="font-size:18px;font-weight:700;color:var(--red-t)">R$ ' + totalGeral.toLocaleString('pt-BR', {minimumFractionDigits:2}) + '</span>' +
+    '</div>' +
+    sorted.map(([k, v]) =>
+      '<div style="margin-bottom:10px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">' +
+      '<span style="font-size:13px;font-weight:500">' + k + '</span>' +
+      '<span style="font-size:13px;font-weight:600;color:var(--red-t)">R$ ' + v.total.toLocaleString('pt-BR', {minimumFractionDigits:2}) + '</span>' +
+      '</div>' +
+      '<div class="bar-bg"><div class="bar-fill" style="width:' + Math.round(v.total/maxVal*100) + '%;background:var(--red-t)"></div></div>' +
+      '<div style="font-size:11px;color:var(--text2);margin-top:2px">' + v.qtd + ' ordem(ns) de serviço</div>' +
+      '</div>'
+    ).join('');
+}
+window.setOSFiltroMes = function(m) { osFiltroMes = m; renderOSRelat(); };
+function renderListaOS() {
+  var el = document.getElementById('lista-os'); if (!el) return;
+  var lista = vals(ordens).sort((a, b) => (b.criadoEm || '').localeCompare(a.criadoEm || ''));
+  if (!lista.length) { el.innerHTML = '<div class="empty">Nenhuma OS cadastrada.</div>'; return; }
+  el.innerHTML = lista.map(o => {
+    var rk = Object.entries(ordens).find(([k, v]) => v.criadoEm === o.criadoEm && v.equip === o.equip);
+    var key = rk ? rk[0] : '';
+    var f = frota[o.equip] || {};
+    return '<div style="padding:12px 0;border-bottom:1px solid var(--border)">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">' +
+      '<div><span class="badge ' + tipoBadge(f.tipo||'c') + '" style="margin-right:6px">' + o.equip + '</span>' +
+      '<span style="font-size:13px;font-weight:500">' + o.mecanica + '</span></div>' +
+      '<span style="font-size:14px;font-weight:700;color:var(--red-t);white-space:nowrap">R$ ' + (o.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span>' +
+      '</div>' +
+      '<div style="font-size:13px;color:var(--text2);margin-bottom:6px">' + o.desc + '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+      '<span style="font-size:12px;color:var(--text2)">📅 ' + fmtData(o.data) + '</span>' +
+      (o.pdfUrl ? '<a href="' + o.pdfUrl + '" target="_blank" style="font-size:12px;color:var(--purple);text-decoration:none;font-weight:500">📄 Ver PDF</a>' : '') +
+      (key ? '<button class="btn btn-sm btn-danger" onclick="deleteOS(\'"+key+"\')" style="margin-left:auto">🗑</button>' : '') +
+      '</div>' +
+      '</div>';
+  }).join('');
+}
 
 // INIT
 document.getElementById('sync-label').textContent = nomeMes() + ' ' + new Date().getFullYear();
