@@ -238,8 +238,12 @@ tr:last-child td{border-bottom:none}
         </select>
       </div>
       <div id="mnt-ref-wrap" style="display:none">
-        <label id="mnt-ref-lbl">Intervalo</label>
+        <label id="mnt-ref-lbl">Intervalo (km ou h)</label>
         <input type="number" id="mnt-ref-val" placeholder="ex: 10000">
+      </div>
+      <div id="mnt-ultimo-wrap" style="display:none">
+        <label id="mnt-ultimo-lbl">Km da última troca</label>
+        <input type="number" id="mnt-ultimo-km" placeholder="ex: 35000">
       </div>
       <div><label>Próxima execução</label><input type="date" id="mnt-prox"></div>
     </div>
@@ -778,14 +782,26 @@ window.deleteAbast = function(key) {
     remove(ref(db, 'abasts/' + key)).then(() => toast('Abastecimento excluído'));
   });
 };
+function getAlertasMnt() {
+  var alertas = [];
+  vals(mnts).forEach(m => {
+    if (m.per === 'por km' && m.proxKm) {
+      var st = statusMntKm(m);
+      if (st && (st.cls.includes('bvenc') || st.cls.includes('bwarn'))) {
+        alertas.push({ msg: m.equip + ' — ' + m.desc + ' | ' + st.txt + ' restantes', venc: st.cls.includes('bvenc') });
+      }
+    } else if (m.proxData && diffDias(m.proxData) <= 3) {
+      var d = diffDias(m.proxData);
+      alertas.push({ msg: m.equip + ' — ' + m.desc + ' | ' + (d < 0 ? 'Vencida há ' + Math.abs(d) + 'd' : 'Vence em ' + d + 'd'), venc: d < 0 });
+    }
+  });
+  return alertas;
+}
 function renderAlertasAbast() {
   var el = document.getElementById('alertas-abast');
-  var venc = vals(mnts).filter(m => m.proxData && diffDias(m.proxData) <= 3);
-  if (!venc.length) { el.innerHTML = ''; return; }
-  el.innerHTML = venc.map(m => {
-    var d = diffDias(m.proxData);
-    return '<div class="alert-bar ' + (d >= 0 ? 'warn' : '') + '">⚠ ' + m.equip + ' — ' + m.desc + ' | ' + (d < 0 ? 'Vencida há ' + Math.abs(d) + 'd' : 'Vence em ' + d + 'd') + '</div>';
-  }).join('');
+  var alertas = getAlertasMnt();
+  if (!alertas.length) { el.innerHTML = ''; return; }
+  el.innerHTML = alertas.map(a => '<div class="alert-bar ' + (a.venc ? '' : 'warn') + '">⚠ ' + a.msg + '</div>').join('');
 }
 
 // ===== MANUTENÇÃO =====
@@ -801,9 +817,12 @@ window.setFiltroMnt = function(t) {
 };
 window.toggleRefWrap = function() {
   var per = document.getElementById('mnt-per').value;
-  var show = per === 'por km' || per === 'por horas';
-  document.getElementById('mnt-ref-wrap').style.display = show ? 'block' : 'none';
+  var showRef = per === 'por km' || per === 'por horas';
+  var showUlt = per === 'por km';
+  document.getElementById('mnt-ref-wrap').style.display = showRef ? 'block' : 'none';
   document.getElementById('mnt-ref-lbl').textContent = per === 'por km' ? 'Intervalo (km)' : 'Intervalo (h)';
+  var ultWrap = document.getElementById('mnt-ultimo-wrap');
+  if (ultWrap) ultWrap.style.display = showUlt ? 'block' : 'none';
 };
 window.addMntItem = function() {
   var equip = document.getElementById('mnt-equip').value || 'Geral';
@@ -812,13 +831,17 @@ window.addMntItem = function() {
   var per = document.getElementById('mnt-per').value;
   var refVal = parseFloat(document.getElementById('mnt-ref-val').value) || null;
   var prox = document.getElementById('mnt-prox').value || null;
+  var ultimoKm = per === 'por km' ? (parseFloat(document.getElementById('mnt-ultimo-km').value) || null) : null;
+  // calcular próximo km automaticamente
+  var proxKm = (per === 'por km' && ultimoKm && refVal) ? ultimoKm + refVal : null;
   if (!desc) { toast('Informe a descrição'); return; }
   setSS('syncing');
-  push(ref(db, 'mnts'), { tipo: tipoMnt, equip, sistema, desc, per, refVal, proxData: prox, ultimaData: null, ultimaResp: null })
+  push(ref(db, 'mnts'), { tipo: tipoMnt, equip, sistema, desc, per, refVal, proxData: prox, ultimoKm, proxKm, ultimaData: null, ultimaResp: null })
     .then(() => { setSS('online'); toast('Item adicionado'); })
     .catch(() => { setSS('offline'); toast('Erro'); });
   document.getElementById('mnt-sistema').value = ''; document.getElementById('mnt-desc').value = '';
   document.getElementById('mnt-prox').value = ''; document.getElementById('mnt-ref-val').value = '';
+  document.getElementById('mnt-ultimo-km').value = '';
 };
 window.editMntItem = function(key) {
   var m = mnts[key]; if (!m) return;
@@ -827,15 +850,22 @@ window.editMntItem = function(key) {
   var html = '<label>Sistema</label><input type="text" id="em-sis" value="' + m.sistema + '" style="margin-top:4px">' +
     '<label>Descrição</label><input type="text" id="em-desc" value="' + m.desc + '" style="margin-top:4px">' +
     '<label>Periodicidade</label><select id="em-per" style="margin-top:4px">' + perOpts + '</select>' +
+    '<div id="em-km-wrap" style="display:' + (m.per === 'por km' ? 'grid' : 'none') + ';grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">' +
+    '<div><label>Intervalo (km)</label><input type="number" id="em-ref-val" value="' + (m.refVal || '') + '" placeholder="ex: 10000" style="margin-top:4px"></div>' +
+    '<div><label>Km da última troca</label><input type="number" id="em-ultimo-km" value="' + (m.ultimoKm || '') + '" placeholder="ex: 35000" style="margin-top:4px"></div>' +
+    '</div>' +
     '<label>Próxima execução</label><input type="date" id="em-prox" value="' + (m.proxData || '') + '" style="margin-top:4px">';
   abrirModal('✏️ Editar manutenção', null, html, ov => {
     var sistema = ov.querySelector('#em-sis').value.trim();
     var desc = ov.querySelector('#em-desc').value.trim();
     var per = ov.querySelector('#em-per').value;
     var prox = ov.querySelector('#em-prox').value || null;
+    var refVal = parseFloat(ov.querySelector('#em-ref-val') ? ov.querySelector('#em-ref-val').value : 0) || m.refVal || null;
+    var ultKm = parseFloat(ov.querySelector('#em-ultimo-km') ? ov.querySelector('#em-ultimo-km').value : 0) || null;
+    var pKm = (per === 'por km' && ultKm && refVal) ? ultKm + refVal : m.proxKm || null;
     if (!desc) { toast('Informe a descrição'); return; }
     ov.remove(); setSS('syncing');
-    update(ref(db, 'mnts/' + key), { sistema, desc, per, proxData: prox })
+    update(ref(db, 'mnts/' + key), { sistema, desc, per, proxData: prox, refVal, ultimoKm: ultKm, proxKm: pKm })
       .then(() => { setSS('online'); toast('Item atualizado'); })
       .catch(() => { setSS('offline'); toast('Erro'); });
   }, '💾 Salvar');
@@ -865,8 +895,16 @@ window.registrarMnt = function(key) {
       if (dias) { d.setDate(d.getDate() + dias); proxData = d.toISOString().slice(0, 10); }
     }
     setSS('syncing');
+    // recalcular proxKm se for manutenção por km
+    var novoUltimoKm = null; var novoProxKm = null;
+    if (m.per === 'por km' && m.refVal) {
+      novoUltimoKm = ultimoRef(m.equip);
+      novoProxKm = novoUltimoKm + m.refVal;
+    }
+    var mntUpdate = { ultimaData: hoje, ultimaResp: colab ? colab.nome : null, proxData };
+    if (novoProxKm) { mntUpdate.ultimoKm = novoUltimoKm; mntUpdate.proxKm = novoProxKm; }
     Promise.all([
-      update(ref(db, 'mnts/' + key), { ultimaData: hoje, ultimaResp: colab ? colab.nome : null, proxData }),
+      update(ref(db, 'mnts/' + key), mntUpdate),
       push(ref(db, 'histMnt'), { mntKey: key, equip: m.equip, desc: m.desc, sistema: m.sistema, tipo: m.tipo, colabKey, colabNome: colab ? colab.nome : null, colabMat: colab ? colab.matricula : null, obs, data: new Date().toISOString() })
     ]).then(() => { setSS('online'); toast('Manutenção registrada!'); }).catch(() => { setSS('offline'); toast('Erro'); });
   });
@@ -891,7 +929,18 @@ window.deleteHistMnt = function(key) {
     remove(ref(db, 'histMnt/' + key)).then(() => toast('Registro excluído'));
   });
 };
+function statusMntKm(m) {
+  // para manutenção por km, calcular com base no hodômetro atual do equipamento
+  if (m.per !== 'por km' || !m.proxKm) return null;
+  var kmAtual = ultimoRef(m.equip);
+  var restante = m.proxKm - kmAtual;
+  if (restante <= 0) return { cls: 'badge bvenc', txt: 'Vencida ' + Math.abs(Math.round(restante)).toLocaleString('pt-BR') + ' km' };
+  if (restante <= 500) return { cls: 'badge bwarn', txt: Math.round(restante).toLocaleString('pt-BR') + ' km' };
+  return { cls: 'badge bok', txt: Math.round(restante).toLocaleString('pt-BR') + ' km' };
+}
 function statusMnt(m) {
+  // prioridade: status por km se for manutenção por km
+  if (m.per === 'por km' && m.proxKm) return statusMntKm(m);
   if (!m.proxData) return { cls: 'chip', txt: 'Sem data' };
   var d = diffDias(m.proxData);
   if (d < 0) return { cls: 'badge bvenc', txt: 'Vencida ' + Math.abs(d) + 'd' };
@@ -914,21 +963,19 @@ function renderMnt() {
         '<button class="btn btn-sm btn-warn" onclick="editMntProx(\'' + k + '\')" title="Editar data">📅</button>' +
         '<button class="btn btn-sm btn-danger" onclick="removeMntItem(\'' + k + '\')">🗑</button>' +
         '</div></div>' +
-        '<div class="mnt-meta"><span>🔄 ' + m.per + (m.refVal ? ' / ' + m.refVal : '') + '</span>' +
-        '<span>📅 Próxima: ' + (m.proxData ? fmtData(m.proxData) : '—') + '</span>' +
+        '<div class="mnt-meta"><span>🔄 ' + m.per + (m.refVal ? ' / ' + m.refVal.toLocaleString('pt-BR') + (m.per === 'por km' ? ' km' : ' h') : '') + '</span>' +
+        (m.per === 'por km' && m.proxKm ? '<span>🎯 Próximo: ' + m.proxKm.toLocaleString('pt-BR') + ' km | Atual: ' + Math.round(ultimoRef(m.equip)).toLocaleString('pt-BR') + ' km</span>' : '<span>📅 Próxima: ' + (m.proxData ? fmtData(m.proxData) : '—') + '</span>') +
         (m.ultimaData ? '<span>✓ Última: ' + fmtData(m.ultimaData) + (m.ultimaResp ? ' · ' + m.ultimaResp : '') + '</span>' : '') +
+        (m.ultimoKm ? '<span>🔧 Último km: ' + m.ultimoKm.toLocaleString('pt-BR') + ' km</span>' : '') +
         '</div></div>';
     }).join('')
   ).join('');
 }
 function renderAlertasMnt() {
   var el = document.getElementById('alertas-manut');
-  var venc = vals(mnts).filter(m => m.proxData && diffDias(m.proxData) <= 3);
-  if (!venc.length) { el.innerHTML = ''; return; }
-  el.innerHTML = venc.map(m => {
-    var d = diffDias(m.proxData);
-    return '<div class="alert-bar ' + (d >= 0 ? 'warn' : '') + '">⚠ ' + m.equip + ' — ' + m.desc + ' | ' + (d < 0 ? 'Vencida há ' + Math.abs(d) + 'd' : 'Vence em ' + d + 'd') + '</div>';
-  }).join('');
+  var alertas = getAlertasMnt();
+  if (!alertas.length) { el.innerHTML = ''; return; }
+  el.innerHTML = alertas.map(a => '<div class="alert-bar ' + (a.venc ? '' : 'warn') + '">⚠ ' + a.msg + '</div>').join('');
 }
 
 // ===== ALMOXARIFADO =====
