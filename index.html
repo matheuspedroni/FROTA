@@ -1411,8 +1411,8 @@ function renderListaOS() {
       '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
       '<span style="font-size:12px;color:var(--text2)">📅 ' + fmtData(o.data) + '</span>' +
       (o.pdfUrl ? '<a href="' + o.pdfUrl + '" target="_blank" style="font-size:12px;color:var(--purple);text-decoration:none;font-weight:500">📄 Ver PDF</a>' : '') +
-      (key ? '<button class="btn btn-sm btn-edit" onclick="editOS(\'"+key+"\')" style="margin-left:auto">✏️</button>' : '') +
-      (key ? '<button class="btn btn-sm btn-danger" onclick="deleteOS(\'"+key+"\')" style="margin-left:4px">🗑</button>' : '') +
+      (key ? '<button class="btn btn-sm btn-edit" onclick="editOS(&quot;'+key+'&quot;)" style="margin-left:auto">✏️</button>' : '') +
+      (key ? '<button class="btn btn-sm btn-danger" onclick="deleteOS(&quot;'+key+'&quot;)" style="margin-left:4px">🗑</button>' : '') +
       '</div>' +
       '</div>';
   }).join('');
