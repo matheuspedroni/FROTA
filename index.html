@@ -1396,32 +1396,73 @@ window.setOSFiltroMes = function(m) { osFiltroMes = m; renderOSRelat(); };
 function renderListaOS() {
   var el = document.getElementById('lista-os'); if (!el) return;
   var lista = vals(ordens).sort((a, b) => (b.criadoEm || '').localeCompare(a.criadoEm || ''));
+  el.innerHTML = '';
   if (!lista.length) { el.innerHTML = '<div class="empty">Nenhuma OS cadastrada.</div>'; return; }
-  el.innerHTML = lista.map(o => {
+  lista.forEach(o => {
     var rk = Object.entries(ordens).find(([k, v]) => v.criadoEm === o.criadoEm && v.equip === o.equip);
     var key = rk ? rk[0] : '';
     var f = frota[o.equip] || {};
-    return '<div style="padding:12px 0;border-bottom:1px solid var(--border)">' +
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">' +
-      '<div><span class="badge ' + tipoBadge(f.tipo||'c') + '" style="margin-right:6px">' + o.equip + '</span>' +
-      '<span style="font-size:13px;font-weight:500">' + o.mecanica + '</span></div>' +
-      '<span style="font-size:14px;font-weight:700;color:var(--red-t);white-space:nowrap">R$ ' + (o.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span>' +
-      '</div>' +
-      '<div style="font-size:13px;color:var(--text2);margin-bottom:6px">' + o.desc + '</div>' +
-      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
-      '<span style="font-size:12px;color:var(--text2)">📅 ' + fmtData(o.data) + '</span>' +
-      (o.pdfUrl ? '<a href="' + o.pdfUrl + '" target="_blank" style="font-size:12px;color:var(--purple);text-decoration:none;font-weight:500">📄 Ver PDF</a>' : '') +
-      (key ? '<button class="btn btn-sm btn-edit os-edit-btn" data-key="' + key + '" style="margin-left:auto">✏️</button>' : '') +
-      (key ? '<button class="btn btn-sm btn-danger os-del-btn" data-key="' + key + '" style="margin-left:4px">🗑</button>' : '') +
-      '</div>' +
-      '</div>';
-  }).join('');
-  // eventos via delegation
-  el.querySelectorAll('.os-edit-btn').forEach(btn => {
-    btn.addEventListener('click', () => editOS(btn.dataset.key));
-  });
-  el.querySelectorAll('.os-del-btn').forEach(btn => {
-    btn.addEventListener('click', () => deleteOS(btn.dataset.key));
+
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'padding:12px 0;border-bottom:1px solid var(--border)';
+
+    // linha 1: badge + mecânica + valor
+    var row1 = document.createElement('div');
+    row1.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px';
+    var left = document.createElement('div');
+    var badge = document.createElement('span');
+    badge.className = 'badge ' + tipoBadge(f.tipo || 'c');
+    badge.style.marginRight = '6px';
+    badge.textContent = o.equip;
+    var mec = document.createElement('span');
+    mec.style.cssText = 'font-size:13px;font-weight:500';
+    mec.textContent = o.mecanica;
+    left.appendChild(badge); left.appendChild(mec);
+    var val = document.createElement('span');
+    val.style.cssText = 'font-size:14px;font-weight:700;color:var(--red-t);white-space:nowrap';
+    val.textContent = 'R$ ' + (o.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+    row1.appendChild(left); row1.appendChild(val);
+
+    // linha 2: descrição
+    var desc = document.createElement('div');
+    desc.style.cssText = 'font-size:13px;color:var(--text2);margin-bottom:6px';
+    desc.textContent = o.desc;
+
+    // linha 3: data + pdf + botões
+    var row3 = document.createElement('div');
+    row3.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap';
+    var dataSpan = document.createElement('span');
+    dataSpan.style.cssText = 'font-size:12px;color:var(--text2)';
+    dataSpan.textContent = '📅 ' + fmtData(o.data);
+    row3.appendChild(dataSpan);
+
+    if (o.pdfUrl) {
+      var link = document.createElement('a');
+      link.href = o.pdfUrl; link.target = '_blank';
+      link.style.cssText = 'font-size:12px;color:var(--purple);text-decoration:none;font-weight:500';
+      link.textContent = '📄 Ver PDF';
+      row3.appendChild(link);
+    }
+
+    if (key) {
+      var spacer = document.createElement('span'); spacer.style.flex = '1';
+      row3.appendChild(spacer);
+
+      var btnEdit = document.createElement('button');
+      btnEdit.className = 'btn btn-sm btn-edit';
+      btnEdit.textContent = '✏️';
+      btnEdit.addEventListener('click', (function(k) { return function() { editOS(k); }; })(key));
+      row3.appendChild(btnEdit);
+
+      var btnDel = document.createElement('button');
+      btnDel.className = 'btn btn-sm btn-danger';
+      btnDel.textContent = '🗑';
+      btnDel.addEventListener('click', (function(k) { return function() { deleteOS(k); }; })(key));
+      row3.appendChild(btnDel);
+    }
+
+    wrap.appendChild(row1); wrap.appendChild(desc); wrap.appendChild(row3);
+    el.appendChild(wrap);
   });
 }
 
