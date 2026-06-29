@@ -1323,6 +1323,27 @@ window.registrarOS = async function() {
       document.getElementById('os-pdf').value = '';
     }).catch(() => { setSS('offline'); toast('Erro ao salvar'); });
 };
+window.editOS = function(key) {
+  var o = ordens[key]; if (!o) return;
+  var html =
+    '<label>Mecânica / Fornecedor</label><input type="text" id="eos-mecanica" value="' + (o.mecanica||'') + '" style="margin-top:4px">' +
+    '<label style="margin-top:10px">Descrição</label><input type="text" id="eos-desc" value="' + (o.desc||'') + '" style="margin-top:4px">' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">' +
+    '<div><label>Data do serviço</label><input type="date" id="eos-data" value="' + (o.data||'') + '" style="margin-top:4px"></div>' +
+    '<div><label>Valor (R$)</label><input type="number" id="eos-valor" value="' + (o.valor||0) + '" min="0" step="0.01" style="margin-top:4px"></div>' +
+    '</div>';
+  abrirModal('✏️ Editar Ordem de Serviço', o.equip + ' — ' + fmtData(o.data), html, ov => {
+    var mecanica = ov.querySelector('#eos-mecanica').value.trim();
+    var desc = ov.querySelector('#eos-desc').value.trim();
+    var data = ov.querySelector('#eos-data').value || o.data;
+    var valor = parseFloat(ov.querySelector('#eos-valor').value) || 0;
+    if (!mecanica || !desc) { toast('Preencha mecânica e descrição'); return; }
+    ov.remove(); setSS('syncing');
+    update(ref(db, 'os/' + key), { mecanica, desc, data, valor })
+      .then(() => { setSS('online'); toast('OS atualizada!'); })
+      .catch(() => { setSS('offline'); toast('Erro ao salvar'); });
+  }, '💾 Salvar');
+};
 window.deleteOS = function(key) {
   pedirSenha('Excluir Ordem de Serviço', () => {
     var o = ordens[key]; if (!o) return;
@@ -1390,7 +1411,8 @@ function renderListaOS() {
       '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
       '<span style="font-size:12px;color:var(--text2)">📅 ' + fmtData(o.data) + '</span>' +
       (o.pdfUrl ? '<a href="' + o.pdfUrl + '" target="_blank" style="font-size:12px;color:var(--purple);text-decoration:none;font-weight:500">📄 Ver PDF</a>' : '') +
-      (key ? '<button class="btn btn-sm btn-danger" onclick="deleteOS(\'"+key+"\')" style="margin-left:auto">🗑</button>' : '') +
+      (key ? '<button class="btn btn-sm btn-edit" onclick="editOS(\'"+key+"\')" style="margin-left:auto">✏️</button>' : '') +
+      (key ? '<button class="btn btn-sm btn-danger" onclick="deleteOS(\'"+key+"\')" style="margin-left:4px">🗑</button>' : '') +
       '</div>' +
       '</div>';
   }).join('');
