@@ -352,6 +352,10 @@ tr:last-child td{border-bottom:none}
 
 <!-- RELATÓRIO -->
 <div id="tab-relat" class="sec">
+  <div class="card" style="display:flex;align-items:center;gap:12px;padding:12px 15px">
+    <span style="font-size:13px;color:var(--text2);white-space:nowrap">📅 Período:</span>
+    <select id="relat-mes" onchange="renderRelat()" style="flex:1;margin-top:0"></select>
+  </div>
   <div class="card">
     <div class="card-title">🚛 Caminhões — consumo e km</div>
     <div class="legend"><span><span class="dot" style="background:var(--purple)"></span>Litros</span><span><span class="dot" style="background:#1D9E75"></span>Km</span></div>
@@ -1102,7 +1106,20 @@ function buildData(lista, mk) {
   return Object.entries(d).sort((a, b) => b[1].litros - a[1].litros);
 }
 window.renderRelat = function() {
-  var mes = getMes();
+  // popular seletor com meses disponíveis
+  var sel = document.getElementById('relat-mes');
+  if (sel) {
+    var mesesDisp = [...new Set(vals(abasts).map(a => a.data.slice(0,7)).concat(vals(ordens).map(o => o.data ? o.data.slice(0,7) : '')).filter(Boolean))].sort().reverse();
+    if (!mesesDisp.includes(getMes())) mesesDisp.unshift(getMes());
+    var cur = sel.value || getMes();
+    var nomMeses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    sel.innerHTML = mesesDisp.map(m => {
+      var parts = m.split('-');
+      var label = nomMeses[parseInt(parts[1])-1] + ' ' + parts[0];
+      return '<option value="' + m + '"' + (m === cur ? ' selected' : '') + '>' + label + '</option>';
+    }).join('');
+  }
+  var mes = (sel && sel.value) ? sel.value : getMes();
   var lista = vals(abasts).filter(x => x.data.startsWith(mes));
   var cams = lista.filter(x => x.tipo === 'c');
   var emps = lista.filter(x => x.tipo === 'e');
@@ -1175,7 +1192,8 @@ function renderHistMnt() {
 
 // ===== EXPORT CSV =====
 window.exportCSV = function() {
-  var mes = getMes();
+  var sel = document.getElementById('relat-mes');
+  var mes = (sel && sel.value) ? sel.value : getMes();
   var lista = vals(abasts).filter(x => x.data.startsWith(mes));
   if (!lista.length) { toast('Nenhum dado'); return; }
   var cab = 'Data,Tipo,Equipamento,Litros,Referência,Delta,Eficiência,Colaborador,Matrícula,Observação\n';
@@ -1191,8 +1209,11 @@ window.exportCSV = function() {
 
 // ===== EXPORT PDF =====
 window.exportPDF = function() {
-  var mes = getMes();
-  var nMes = nomeMes() + ' ' + mes.split('-')[0];
+  var sel = document.getElementById('relat-mes');
+  var mes = (sel && sel.value) ? sel.value : getMes();
+  var parts = mes.split('-');
+  var nomMeses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var nMes = nomMeses[parseInt(parts[1])-1] + ' ' + parts[0];
   var lista = vals(abasts).filter(x => x.data.startsWith(mes)).sort((a, b) => b.data.localeCompare(a.data));
   var cams = lista.filter(x => x.tipo === 'c');
   var emps = lista.filter(x => x.tipo === 'e');
