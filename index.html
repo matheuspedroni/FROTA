@@ -813,14 +813,18 @@ window.editAbast = function(key) {
     var isE = a.tipo === 'e';
     var html = '<label>Litros</label><input type="number" id="ea-lit" value="' + a.litros + '" style="margin-top:4px">' +
       '<label>' + (isE ? 'Horímetro (h)' : 'Hodômetro (km)') + '</label><input type="number" id="ea-ref" value="' + (a.ref || '') + '" style="margin-top:4px">' +
+      '<label>' + (isE ? 'Horas trabalhadas (delta)' : 'Km rodados (delta)') + ' <span style="font-size:11px;color:var(--text2)">— corrigir se necessário</span></label><input type="number" id="ea-delta" value="' + (a.delta || '') + '" style="margin-top:4px">' +
       '<label>Observação</label><input type="text" id="ea-obs" value="' + (a.obs || '') + '" style="margin-top:4px">';
     abrirModal('✏️ Editar abastecimento', a.equip + ' — ' + fmtDt(a.data), html, ov => {
       var lit = parseFloat(ov.querySelector('#ea-lit').value);
       if (!lit || lit <= 0) { toast('Informe os litros'); return; }
       var refv = parseFloat(ov.querySelector('#ea-ref').value) || null;
+      var delta = parseFloat(ov.querySelector('#ea-delta').value) || 0;
       var obs = ov.querySelector('#ea-obs').value.trim();
+      // recalcular ef com o delta corrigido
+      var ef = (delta > 0 && lit > 0) ? (isE ? lit/delta : delta/lit) : null;
       ov.remove(); setSS('syncing');
-      update(ref(db, 'abasts/' + key), { litros: lit, ref: refv, obs })
+      update(ref(db, 'abasts/' + key), { litros: lit, ref: refv, delta, ef, obs })
         .then(() => { setSS('online'); toast('Abastecimento atualizado'); })
         .catch(() => { setSS('offline'); toast('Erro'); });
     }, '💾 Salvar');
