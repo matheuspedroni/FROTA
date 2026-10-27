@@ -942,10 +942,9 @@ window.registrarMnt = function(key) {
     var obs = ov2.querySelector('#mnt-resp-obs').value.trim();
     ov2.remove();
     var hoje = getHoje(); var proxData = m.proxData;
-    if (proxData) {
-      var d = new Date(proxData + 'T12:00:00');
+    if (proxData || m.per) {
       var dias = { Diária: 1, Semanal: 7, Mensal: 30, Semestral: 180, Anual: 365 }[m.per];
-      if (dias) { d.setDate(d.getDate() + dias); proxData = d.toISOString().slice(0, 10); }
+      if (dias) { var d = new Date(hoje + 'T12:00:00'); d.setDate(d.getDate() + dias); proxData = d.toISOString().slice(0, 10); }
     }
     setSS('syncing');
     // recalcular proxKm se for manutenção por km
